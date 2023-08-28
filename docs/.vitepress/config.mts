@@ -9,7 +9,7 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     logo: '/icon128.png',
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/OldPanda', ariaLabel: 'GitHub' },
+      { icon: 'github', link: 'https://github.com/OldPanda/douban-book-plus-homepage', ariaLabel: 'GitHub' },
       { icon: 'twitter', link: 'https://twitter.com/OldPanda', ariaLabel: 'X' },
       { icon: 'mastodon', link: 'https://mastodon.social/@oldpanda', ariaLabel: 'Mastodon' },
       {
