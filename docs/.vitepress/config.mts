@@ -48,6 +48,10 @@ export default defineConfig({
     [
       'script',
       { src: 'https://kit.fontawesome.com/404b401dc3.js', crossorigin: 'anonymous' }
+    ],
+    [
+      'script',
+      { defer: '', src: 'https://static.cloudflareinsights.com/beacon.min.js', 'data-cf-beacon': '{"token": "6815610ab6ce47a5b727e0df61d515c2"}' }
     ]
   ]
 })
