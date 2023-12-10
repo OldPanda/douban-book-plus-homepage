@@ -5,10 +5,10 @@
   <div class="container">
     <div class="title">支持我们</div>
     <div class="media-pages">
-      <div class="media">
+      <!-- <div class="media">
         <a href="https://creatorsdaily.com/4efab75e-5fd9-4907-8f47-fc43697be75f?utm_source=vote" target="_blank"><img
             src="https://creatorsdaily.com/api/4efab75e-5fd9-4907-8f47-fc43697be75f/vote.svg?theme=light" /></a>
-      </div>
+      </div> -->
       <div class="media">
         <a href="https://www.producthunt.com/posts/douban-book?utm_source=badge-featured&amp;utm_medium=badge&amp;utm_souce=badge-douban-book"
           target="_blank" rel="noopener noreferrer">
