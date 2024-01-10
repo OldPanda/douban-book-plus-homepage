@@ -9,11 +9,11 @@
     </div>
     <div class="vendor-logos">
       <img class="logo" src="/weread-logo.png" />
-      <img class="logo" src="/kindle-logo.png" />
       <img class="logo" src="/duokan-logo.png" />
       <img class="logo" src="/snailreader-logo.png" />
       <img class="logo" src="/douban-logo.svg" />
       <img class="logo" src="/dedao-logo.png" />
+      <img class="logo" src="/zlibrary-logo.png" />
     </div>
   </div>
 </template>
