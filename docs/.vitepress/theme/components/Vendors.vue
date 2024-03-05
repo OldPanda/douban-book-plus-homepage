@@ -14,6 +14,7 @@
       <img class="logo" src="/douban-logo.svg" />
       <img class="logo" src="/dedao-logo.png" />
       <img class="logo" src="/zlibrary-logo.png" />
+      <img class="logo anna" src="/anna-logo.svg" />
     </div>
   </div>
 </template>
@@ -82,6 +83,10 @@
   .logo {
     padding: 5px 0;
     max-height: 50px;
+  }
+  .logo.anna {
+    height: 50px;
+    max-width: 200px;
   }
 }
 </style>
