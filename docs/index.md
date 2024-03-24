@@ -31,3 +31,4 @@ features:
 <vendors/>
 <panda-hr/>
 <vote-us/>
+<media/>
