@@ -12,7 +12,7 @@ export default {
   enhanceApp({ app }) {
     app.component('vendors', Vendors)
     app.component('panda-hr', PandaHR)
-    app.component('vote-us', VoteUs)
+    // app.component('vote-us', VoteUs)
     app.component('media', Media)
   }
 }
