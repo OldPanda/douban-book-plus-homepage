@@ -44,10 +44,6 @@ export default defineConfig({
     [
       'link',
       { href: 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC&display=swap', rel: 'stylesheet' }
-    ],
-    [
-      'script',
-      { defer: '', src: 'https://static.cloudflareinsights.com/beacon.min.js', 'data-cf-beacon': '{"token": "6815610ab6ce47a5b727e0df61d515c2"}' }
     ]
   ]
 })
