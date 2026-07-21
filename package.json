@@ -5,6 +5,11 @@
     "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
-    "vitepress": "1.0.1"
+    "vitepress": "1.6.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "vite": "6.4.3"
+    }
   }
 }
