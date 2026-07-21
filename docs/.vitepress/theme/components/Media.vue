@@ -3,9 +3,6 @@
 
 <template>
   <div class="media-logos">
-    <!-- 神器集 -->
-    <a href="https://hao.logosc.cn/p/2554?utm_source=doubanbook.plus" target="_blank"><img class="logo"
-        src="/shenqiji.svg" /></a>
     <!-- 小众软件 -->
     <a href="https://www.appinn.com/douban-book-plus-2/?utm_source=doubanbook.plus" target="_blank"><img class="logo"
         src="/appinn.png" style="height: 36px; margin-top: 40px;" /></a>
