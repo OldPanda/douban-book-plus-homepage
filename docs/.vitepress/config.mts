@@ -30,7 +30,7 @@ export default defineConfig({
     ],
     footer: {
       message: 'Made with 💙 by <a href="https://old-panda.com/" target="_blank">OldPanda</a>',
-      copyright: 'Copyright © 2020-present'
+      copyright: 'Copyright © 2020-2026 · <a href="/privacy">隐私政策</a> · <a href="/terms">使用条款</a>'
     }
   },
   appearance: false,
