@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "lib": ["ESNext"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "target": "ESNext",
+    "types": ["./types.d.ts"]
+  },
+  "include": ["./**/*.ts"]
+}

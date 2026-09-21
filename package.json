@@ -1,11 +1,23 @@
 {
+  "type": "module",
   "scripts": {
+    "check": "pnpm run typecheck && pnpm run docs:build && pnpm run functions:build",
+    "db:migrate:local": "wrangler d1 migrations apply douban-book-plus-feedback --local",
+    "db:migrate:remote": "wrangler d1 migrations apply douban-book-plus-feedback --remote",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "functions:build": "wrangler pages functions build --outdir .wrangler/functions-build",
+    "survey:results": "wrangler d1 execute douban-book-plus-feedback --remote --command \"SELECT reason, COUNT(*) AS responses FROM uninstall_responses GROUP BY reason ORDER BY responses DESC\"",
+    "typecheck": "vue-tsc --noEmit && tsc --project functions/tsconfig.json --noEmit"
   },
   "devDependencies": {
-    "vitepress": "1.6.4"
+    "@types/node": "26.2.0",
+    "typescript": "5.9.3",
+    "vitepress": "1.6.4",
+    "vue": "3.5.40",
+    "vue-tsc": "3.3.10",
+    "wrangler": "4.123.0"
   },
   "pnpm": {
     "overrides": {
