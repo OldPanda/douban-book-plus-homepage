@@ -18,8 +18,6 @@ export interface UninstallSubmission {
   website: string
 }
 
-export const MAX_REQUEST_BYTES = 8192
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -56,41 +54,4 @@ export const parseUninstallSubmission = (value: unknown): UninstallSubmission | 
       : 'unknown'
 
   return { reason, improvement, additionalFeedback, extensionVersion, website }
-}
-
-export class RequestTooLargeError extends Error {}
-
-export const readJsonBody = async (request: Request): Promise<unknown> => {
-  const declaredLength = Number(request.headers.get('content-length'))
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_REQUEST_BYTES) {
-    throw new RequestTooLargeError()
-  }
-
-  if (request.body === null) return null
-
-  const reader = request.body.getReader()
-  const chunks: Uint8Array[] = []
-  let totalBytes = 0
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    if (value === undefined) continue
-
-    totalBytes += value.byteLength
-    if (totalBytes > MAX_REQUEST_BYTES) {
-      await reader.cancel()
-      throw new RequestTooLargeError()
-    }
-    chunks.push(value)
-  }
-
-  const body = new Uint8Array(totalBytes)
-  let offset = 0
-  for (const chunk of chunks) {
-    body.set(chunk, offset)
-    offset += chunk.byteLength
-  }
-
-  return JSON.parse(new TextDecoder().decode(body)) as unknown
 }

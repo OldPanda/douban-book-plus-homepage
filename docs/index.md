@@ -32,3 +32,4 @@ features:
 <panda-hr/>
 <vote-us/>
 <media/>
+<share-referral-analytics />

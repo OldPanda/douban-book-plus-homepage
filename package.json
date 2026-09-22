@@ -1,7 +1,10 @@
 {
   "type": "module",
   "scripts": {
-    "check": "pnpm run typecheck && pnpm run docs:build && pnpm run functions:build",
+    "analytics:share-funnel": "wrangler d1 execute douban-book-plus-feedback --remote --file ./queries/share-funnel.sql",
+    "analytics:worker:build": "wrangler deploy --dry-run --config ./workers/share-analytics/wrangler.jsonc --outdir .wrangler/share-analytics-worker",
+    "analytics:worker:deploy": "wrangler deploy --config ./workers/share-analytics/wrangler.jsonc",
+    "check": "pnpm run typecheck && pnpm run test:functions && pnpm run docs:build && pnpm run functions:build && pnpm run analytics:worker:build",
     "db:migrate:local": "wrangler d1 migrations apply douban-book-plus-feedback --local",
     "db:migrate:remote": "wrangler d1 migrations apply douban-book-plus-feedback --remote",
     "docs:dev": "vitepress dev docs",
@@ -9,7 +12,8 @@
     "docs:preview": "vitepress preview docs",
     "functions:build": "wrangler pages functions build --outdir .wrangler/functions-build",
     "survey:results": "wrangler d1 execute douban-book-plus-feedback --remote --command \"SELECT reason, COUNT(*) AS responses FROM uninstall_responses GROUP BY reason ORDER BY responses DESC\"",
-    "typecheck": "vue-tsc --noEmit && tsc --project functions/tsconfig.json --noEmit"
+    "test:functions": "node --test functions/lib/*.test.ts workers/share-analytics/*.test.ts",
+    "typecheck": "vue-tsc --noEmit && tsc --project functions/tsconfig.json --noEmit && tsc --project workers/share-analytics/tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@types/node": "26.2.0",

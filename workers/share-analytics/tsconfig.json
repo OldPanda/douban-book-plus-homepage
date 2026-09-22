@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "lib": ["ESNext"],
+    "allowImportingTsExtensions": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "strict": true,
+    "target": "ESNext",
+    "types": ["../../functions/types.d.ts"]
+  },
+  "include": ["./**/*.ts", "../../functions/lib/*.ts"],
+  "exclude": ["../../functions/lib/*.test.ts", "./*.test.ts"]
+}

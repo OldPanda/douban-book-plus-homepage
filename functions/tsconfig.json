@@ -7,5 +7,6 @@
     "target": "ESNext",
     "types": ["./types.d.ts"]
   },
-  "include": ["./**/*.ts"]
+  "include": ["./**/*.ts"],
+  "exclude": ["./**/*.test.ts"]
 }
