@@ -1,8 +1,7 @@
 import {
   parseUninstallSubmission,
-  readJsonBody,
-  RequestTooLargeError,
 } from '../lib/uninstall-survey'
+import { readJsonBody, RequestTooLargeError } from '../lib/json-body'
 
 const jsonResponse = (body: object, status: number): Response =>
   Response.json(body, {

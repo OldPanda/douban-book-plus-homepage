@@ -1,0 +1,32 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "douban-book-plus-share-analytics",
+  "main": "./index.ts",
+  "compatibility_date": "2026-08-17",
+  "routes": [
+    {
+      "pattern": "doubanbook.plus/api/share-analytics",
+      "zone_name": "doubanbook.plus"
+    }
+  ],
+  "triggers": {
+    "crons": ["17 3 * * *"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "douban-book-plus-feedback",
+      "database_id": "34d7c35a-442e-4356-a8d1-5d2147ab667d"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "SHARE_ANALYTICS_RATE_LIMITER",
+      "namespace_id": "910211",
+      "simple": {
+        "limit": 120,
+        "period": 60
+      }
+    }
+  ]
+}

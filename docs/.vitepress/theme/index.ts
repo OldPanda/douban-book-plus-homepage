@@ -6,6 +6,7 @@ import PandaHR from './components/PandaHR.vue'
 import VoteUs from './components/VoteUs.vue'
 import Media from './components/Media.vue'
 import UninstallSurvey from './components/UninstallSurvey.vue'
+import ShareReferralAnalytics from './components/ShareReferralAnalytics.vue'
 import './custom.css'
 
 export default {
@@ -17,5 +18,6 @@ export default {
     // app.component('vote-us', VoteUs)
     app.component('media', Media)
     app.component('uninstall-survey', UninstallSurvey)
+    app.component('share-referral-analytics', ShareReferralAnalytics)
   }
 } satisfies Theme
