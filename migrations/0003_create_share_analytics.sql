@@ -45,7 +45,7 @@ WHEN NOT EXISTS (
   WHERE receipt_hash = NEW.receipt_hash
 )
 BEGIN
-  SELECT CASE WHEN
+  SELECT (CASE WHEN
     COALESCE((
       SELECT event_rows
       FROM share_analytics_ingest_quota
@@ -56,7 +56,7 @@ BEGIN
       FROM share_analytics_ingest_quota
       WHERE quota_day = date('now') AND source = NEW.source
     ), 0) + NEW.event_count > 250000
-  THEN RAISE(ABORT, 'share analytics quota exceeded') END;
+  THEN RAISE(ABORT, 'share analytics quota exceeded') END);
 END;
 
 CREATE TRIGGER share_analytics_receipt_inserted
