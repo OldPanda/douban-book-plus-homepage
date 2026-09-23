@@ -1,6 +1,7 @@
 <!-- To override hero image -->
 <script setup lang="ts">
 import DefaultTheme from 'vitepress/theme';
+import ExtensionStores from './components/ExtensionStores.vue';
 
 const { Layout } = DefaultTheme;
 </script>
@@ -9,6 +10,9 @@ const { Layout } = DefaultTheme;
   <Layout>
     <template #home-hero-image>
       <img id="hero-image" src="/douban-book-plus-screenshot.png">
+    </template>
+    <template #home-features-before>
+      <ExtensionStores />
     </template>
   </Layout>
 </template>

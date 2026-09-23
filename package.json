@@ -2,6 +2,7 @@
   "type": "module",
   "scripts": {
     "analytics:share-funnel": "wrangler d1 execute douban-book-plus-feedback --remote --file ./queries/share-funnel.sql",
+    "analytics:store-stats:manual": "wrangler dev --test-scheduled --config ./workers/share-analytics/wrangler.manual.jsonc",
     "analytics:worker:build": "wrangler deploy --dry-run --config ./workers/share-analytics/wrangler.jsonc --outdir .wrangler/share-analytics-worker",
     "analytics:worker:deploy": "wrangler deploy --config ./workers/share-analytics/wrangler.jsonc",
     "check": "pnpm run typecheck && pnpm run test:functions && pnpm run docs:build && pnpm run functions:build && pnpm run analytics:worker:build",

@@ -1,0 +1,14 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "douban-book-plus-share-analytics-manual",
+  "main": "./index.ts",
+  "compatibility_date": "2026-08-17",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "douban-book-plus-feedback",
+      "database_id": "34d7c35a-442e-4356-a8d1-5d2147ab667d",
+      "remote": true
+    }
+  ]
+}

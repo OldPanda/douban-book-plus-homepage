@@ -7,10 +7,14 @@
     {
       "pattern": "doubanbook.plus/api/share-analytics",
       "zone_name": "doubanbook.plus"
+    },
+    {
+      "pattern": "doubanbook.plus/api/extension-store-stats",
+      "zone_name": "doubanbook.plus"
     }
   ],
   "triggers": {
-    "crons": ["17 3 * * *"]
+    "crons": ["17 3 * * *", "17 */6 * * *"]
   },
   "d1_databases": [
     {

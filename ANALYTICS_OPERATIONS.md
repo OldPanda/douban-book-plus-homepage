@@ -29,11 +29,12 @@ idempotent but is never reused as a user or installation identifier.
 1. Apply the pending D1 migrations locally and run `pnpm run check`.
 2. Apply the production migration with `pnpm run db:migrate:remote`.
 3. Deploy the dedicated ingestion Worker with `pnpm run analytics:worker:deploy`.
-   Its route handles only `doubanbook.plus/api/share-analytics`; its checked-in
+   Its write route is `doubanbook.plus/api/share-analytics`; its checked-in
    rate-limit binding caps extension and homepage sources independently at 120
    requests per minute per Cloudflare location. Atomic D1 triggers additionally
    cap each source at 100,000 newly accepted event rows and 250,000 reported
-   events per UTC day. Idempotent retries do not consume this global quota.
+   events per UTC day. Idempotent retries do not consume this global quota. The
+   same Worker serves the read-only extension-store cache described below.
 4. Deploy the Pages revision, then release the extension revision.
 5. Submit a test batch twice and confirm the daily counter increases only once.
 
@@ -42,6 +43,38 @@ after eight calendar days. Daily anonymous aggregate counters can be retained
 as long-term product trends. Origin checks and strict payload validation reduce
 noise but are not authentication; monitor 429s and D1 volume because a public
 analytics endpoint can never treat CORS as an abuse boundary.
+
+## Extension store statistics
+
+The Worker fetches Chrome, Edge, and Firefox listing statistics concurrently at
+minute 17 every six hours. Valid results are independently upserted into
+`extension_store_stats`; a failed request or parser leaves that store's previous
+row untouched. Firefox uses its public add-on API. Chrome and Edge are parsed
+from their public listing HTML, so parser failures are expected to be possible
+and are reported in the structured `extension_store_stats_refreshed` log.
+
+`GET /api/extension-store-stats` returns the last successful values. The
+homepage renders checked-in fallback values during server-side rendering and
+replaces only valid stores after this request succeeds. Consequently, the cards
+remain useful before the first scheduled refresh and during Worker, D1, network,
+or upstream-store failures.
+
+To refresh the production cache manually, start the dedicated local Worker in
+one terminal:
+
+```sh
+pnpm run analytics:store-stats:manual
+```
+
+Then trigger the store-statistics schedule from a second terminal:
+
+```sh
+curl "http://localhost:8787/cdn-cgi/local/scheduled?cron=17%20%2A%2F6%20%2A%20%2A%20%2A&format=json"
+```
+
+The manual configuration runs the Worker locally so Wrangler exposes the test
+route, but its D1 binding is explicitly remote and therefore updates the
+production database. Stop the local Worker with Ctrl-C after the refresh.
 
 ## Reports
 

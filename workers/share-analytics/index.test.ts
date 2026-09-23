@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import worker, { deleteExpiredReceipts } from './index.ts'
+import worker from './index.ts'
+import { deleteExpiredReceipts } from './maintenance.ts'
 
 const extensionOrigin = 'chrome-extension://abcdefghijklmnop'
 
@@ -75,4 +76,38 @@ test('scheduled cleanup removes receipts at the eight-day boundary', async () =>
   assert.equal(statements.length, 2)
   assert.match(statements[0], /received_day <= date\('now', '-8 days'\)/)
   assert.match(statements[1], /quota_day <= date\('now', '-8 days'\)/)
+})
+
+test('serves cached extension store statistics with public cache headers', async () => {
+  const env = {
+    DB: {
+      prepare: () => ({
+        all: async () => ({
+          results: [{
+            store: 'chrome',
+            user_count: 20_000,
+            rating: 4.7,
+            rating_count: 83,
+            fetched_at: '2026-09-22T12:00:00.000Z',
+          }],
+        }),
+      }),
+    },
+  } as unknown as Parameters<typeof worker.fetch>[1]
+
+  const response = await worker.fetch(
+    new Request('https://doubanbook.plus/api/extension-store-stats'),
+    env,
+  )
+  assert.equal(response.status, 200)
+  assert.match(response.headers.get('Cache-Control') ?? '', /s-maxage=1800/)
+  assert.deepEqual(await response.json(), {
+    stores: [{
+      store: 'chrome',
+      users: 20_000,
+      rating: 4.7,
+      ratingCount: 83,
+      fetchedAt: '2026-09-22T12:00:00.000Z',
+    }],
+  })
 })

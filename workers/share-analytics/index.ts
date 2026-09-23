@@ -4,11 +4,12 @@ import {
   parseShareAnalyticsBatch,
   receiptHash,
 } from '../../functions/lib/share-analytics.ts'
-
-interface ShareAnalyticsWorkerEnv {
-  DB: D1Database
-  SHARE_ANALYTICS_RATE_LIMITER: RateLimit
-}
+import {
+  EXTENSION_STORE_STATS_CRON,
+  readExtensionStoreStats,
+  refreshExtensionStoreStats,
+} from './store-stats.ts'
+import { deleteExpiredReceipts, SHARE_ANALYTICS_CLEANUP_CRON } from './maintenance.ts'
 
 const responseHeaders = (origin: string | null): HeadersInit => ({
   'Cache-Control': 'no-store',
@@ -46,7 +47,7 @@ const handleOptions = (request: Request): Response => {
   })
 }
 
-const handlePost = async (request: Request, env: ShareAnalyticsWorkerEnv): Promise<Response> => {
+const handlePost = async (request: Request, env: Env): Promise<Response> => {
   const source = classifyAnalyticsOrigin(request)
   const origin = source === null ? null : request.headers.get('Origin')
   if (source === null) return jsonResponse({ message: 'Forbidden' }, 403)
@@ -121,29 +122,51 @@ const handlePost = async (request: Request, env: ShareAnalyticsWorkerEnv): Promi
   return jsonResponse({ saved: true }, 202, origin)
 }
 
-export const deleteExpiredReceipts = async (env: Pick<ShareAnalyticsWorkerEnv, 'DB'>): Promise<void> => {
-  await env.DB.batch([
-    env.DB.prepare(
-      "DELETE FROM share_analytics_receipts WHERE received_day <= date('now', '-8 days')",
-    ),
-    env.DB.prepare(
-      "DELETE FROM share_analytics_ingest_quota WHERE quota_day <= date('now', '-8 days')",
-    ),
-  ])
+const handleGetExtensionStoreStats = async (env: Pick<Env, 'DB'>): Promise<Response> => {
+  try {
+    const stores = await readExtensionStoreStats(env)
+    return new Response(JSON.stringify({ stores }), {
+      headers: {
+        'Cache-Control': 'public, max-age=300, s-maxage=1800, stale-while-revalidate=21600',
+        'Content-Type': 'application/json; charset=utf-8',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    })
+  } catch (error) {
+    console.error(JSON.stringify({
+      event: 'extension_store_stats_read_failed',
+      error: error instanceof Error ? error.message : 'unknown',
+    }))
+    return jsonResponse({ message: 'Unable to load extension store statistics' }, 500)
+  }
 }
 
 export default {
-  async fetch(request: Request, env: ShareAnalyticsWorkerEnv): Promise<Response> {
+  async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
-    if (url.pathname !== '/api/share-analytics') {
-      return jsonResponse({ message: 'Not found' }, 404)
+    if (url.pathname === '/api/extension-store-stats') {
+      if (request.method === 'GET') return handleGetExtensionStoreStats(env)
+      return jsonResponse({ message: 'Method not allowed' }, 405)
     }
-    if (request.method === 'OPTIONS') return handleOptions(request)
-    if (request.method === 'POST') return handlePost(request, env)
-    return jsonResponse({ message: 'Method not allowed' }, 405)
+    if (url.pathname === '/api/share-analytics') {
+      if (request.method === 'OPTIONS') return handleOptions(request)
+      if (request.method === 'POST') return handlePost(request, env)
+      return jsonResponse({ message: 'Method not allowed' }, 405)
+    }
+    return jsonResponse({ message: 'Not found' }, 404)
   },
 
-  async scheduled(_controller: ScheduledController, env: ShareAnalyticsWorkerEnv): Promise<void> {
-    await deleteExpiredReceipts(env)
+  async scheduled(controller: ScheduledController, env: Env): Promise<void> {
+    if (controller.cron === SHARE_ANALYTICS_CLEANUP_CRON) {
+      await deleteExpiredReceipts(env)
+      return
+    }
+    if (controller.cron === EXTENSION_STORE_STATS_CRON) {
+      const result = await refreshExtensionStoreStats(env)
+      console.log(JSON.stringify({ event: 'extension_store_stats_refreshed', ...result }))
+      if (result.updated.length === 0) controller.noRetry()
+      return
+    }
+    console.warn(JSON.stringify({ event: 'unknown_scheduled_trigger', cron: controller.cron }))
   },
-} satisfies ExportedHandler<ShareAnalyticsWorkerEnv>
+} satisfies ExportedHandler<Env>
