@@ -1,5 +1,6 @@
 {
   "type": "module",
+  "packageManager": "pnpm@8.15.9",
   "scripts": {
     "analytics:share-funnel": "wrangler d1 execute douban-book-plus-feedback --remote --file ./queries/share-funnel.sql",
     "analytics:store-stats:manual": "wrangler dev --test-scheduled --config ./workers/share-analytics/wrangler.manual.jsonc",
@@ -22,10 +23,12 @@
     "vitepress": "1.6.4",
     "vue": "3.5.40",
     "vue-tsc": "3.3.10",
-    "wrangler": "4.123.0"
+    "wrangler": "4.138.0"
   },
   "pnpm": {
     "overrides": {
+      "nanoid": "3.3.19",
+      "postcss": "8.5.28",
       "vite": "6.4.3"
     }
   }
