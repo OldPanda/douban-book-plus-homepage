@@ -1,6 +1,6 @@
 # Uninstall survey operations
 
-The uninstall survey stores only the three answers, extension version, and submission time in the `douban-book-plus-feedback` D1 database. It does not persist request headers, IP addresses, user agents, cookies, or extension/user identifiers.
+The uninstall survey stores only the three answers, extension version, and submission time in the `douban-book-plus-feedback` D1 database. It does not persist request headers, IP addresses, user agents, cookies, or extension/user identifiers. For abuse prevention, the Pages Function derives a daily SHA-256 rate-limit key from the Cloudflare-provided client address. Neither the raw address nor the derived key is logged or stored in D1.
 
 ## First deployment
 
@@ -11,6 +11,15 @@ The uninstall survey stores only the three answers, extension version, and submi
 5. Apply the production schema with `pnpm run db:migrate:remote`.
 6. Run `pnpm run check`, then deploy through the existing Cloudflare Pages Git integration.
 7. Submit one response from `/uninstall?version=1.6.0` and confirm it using the query below before releasing the extension.
+
+The checked-in rate-limit bindings permit three submissions per minute for each
+daily pseudonymous client and 30 total submissions per minute in each Cloudflare
+location. An atomic D1 trigger provides a final global ceiling of 1,000 stored
+responses per UTC day. Rate-limit binding counters are permissive and local to
+each Cloudflare location, so the D1 ceiling is the authoritative storage bound.
+Monitor Pages Function logs for sustained `uninstall_survey_rate_limited`,
+`uninstall_survey_daily_quota_reached`, or `uninstall_survey_storage_failed`
+events. These records never include the client address or derived limiter key.
 
 For an existing deployment created with `0001_create_uninstall_responses.sql`,
 apply the pending migrations before relying on submissions that omit the optional

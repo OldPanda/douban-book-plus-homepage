@@ -42,6 +42,11 @@ test('rejects extra fields, invalid dimensions, stale days, and excessive totals
   assert.equal(parseShareAnalyticsBatch({ ...valid, events: [{ day: '2026-09-20', event: 'share_target_clicked', target: 'unknown', count: 1 }] }, 'extension', now), null)
   assert.equal(parseShareAnalyticsBatch({ ...valid, events: [{ day: '2026-09-01', event: 'share_opened', count: 1 }] }, 'extension', now), null)
   assert.equal(parseShareAnalyticsBatch({ ...valid, events: Array.from({ length: 6 }, () => ({ day: '2026-09-20', event: 'share_opened', count: 1000 })) }, 'extension', now), null)
+  assert.equal(parseShareAnalyticsBatch({ ...valid, events: [
+    { day: '2026-09-20', event: 'share_opened', count: 50 },
+    { day: '2026-09-20', event: 'share_opened', count: 50 },
+    { day: '2026-09-20', event: 'share_opened', count: 1 },
+  ] }, 'extension', now), null)
 })
 
 test('separates extension and shared-homepage event contracts', () => {
@@ -61,8 +66,20 @@ test('classifies only same-origin and extension-origin requests', () => {
     'shared_homepage',
   )
   assert.equal(
-    classifyAnalyticsOrigin(new Request('https://doubanbook.plus/api/share-analytics', { headers: { Origin: 'chrome-extension://abcdefghijklmnop' } })),
+    classifyAnalyticsOrigin(new Request('https://doubanbook.plus/api/share-analytics', { headers: { Origin: 'chrome-extension://lkmnoeojcpmcpjlbhbjbilpmccfljdoj' } })),
     'extension',
+  )
+  assert.equal(
+    classifyAnalyticsOrigin(new Request('https://doubanbook.plus/api/share-analytics', { headers: { Origin: 'chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' } })),
+    null,
+  )
+  assert.equal(
+    classifyAnalyticsOrigin(new Request('https://doubanbook.plus/api/share-analytics', { headers: { Origin: 'moz-extension://f14f75b7-cf2a-4306-89a4-8ba4bc35fdd7' } })),
+    'extension',
+  )
+  assert.equal(
+    classifyAnalyticsOrigin(new Request('https://doubanbook.plus/api/share-analytics', { headers: { Origin: 'safari-web-extension://com.example.fake' } })),
+    null,
   )
   assert.equal(
     classifyAnalyticsOrigin(new Request('https://doubanbook.plus/api/share-analytics', { headers: { Origin: 'https://example.com' } })),

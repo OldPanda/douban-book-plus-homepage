@@ -11,5 +11,23 @@
       "database_id": "34d7c35a-442e-4356-a8d1-5d2147ab667d",
       "migrations_dir": "migrations"
     }
+  ],
+  "ratelimits": [
+    {
+      "name": "SURVEY_CLIENT_RATE_LIMITER",
+      "namespace_id": "910213",
+      "simple": {
+        "limit": 3,
+        "period": 60
+      }
+    },
+    {
+      "name": "SURVEY_GLOBAL_RATE_LIMITER",
+      "namespace_id": "910214",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    }
   ]
 }

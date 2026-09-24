@@ -1,4 +1,5 @@
 import { readJsonBody, RequestTooLargeError } from '../../functions/lib/json-body.ts'
+import { dailyClientRateLimitKey } from '../../functions/lib/request-rate-limit.ts'
 import {
   classifyAnalyticsOrigin,
   parseShareAnalyticsBatch,
@@ -23,10 +24,15 @@ const responseHeaders = (origin: string | null): HeadersInit => ({
       }),
 })
 
-const jsonResponse = (body: object, status: number, origin: string | null = null): Response =>
+const jsonResponse = (
+  body: object,
+  status: number,
+  origin: string | null = null,
+  extraHeaders: HeadersInit = {},
+): Response =>
   new Response(JSON.stringify(body), {
     status,
-    headers: responseHeaders(origin),
+    headers: { ...responseHeaders(origin), ...extraHeaders },
   })
 
 const handleOptions = (request: Request): Response => {
@@ -52,9 +58,28 @@ const handlePost = async (request: Request, env: Env): Promise<Response> => {
   const origin = source === null ? null : request.headers.get('Origin')
   if (source === null) return jsonResponse({ message: 'Forbidden' }, 403)
 
-  const rateLimit = await env.SHARE_ANALYTICS_RATE_LIMITER.limit({ key: source })
-  if (!rateLimit.success) {
-    return jsonResponse({ message: 'Too many requests' }, 429, origin)
+  try {
+    const clientKey = await dailyClientRateLimitKey(request, `share-analytics:${source}`)
+    const clientLimit = await env.SHARE_ANALYTICS_CLIENT_RATE_LIMITER.limit({ key: clientKey })
+    if (!clientLimit.success) {
+      console.warn(JSON.stringify({ event: 'share_analytics_rate_limited', scope: 'client', source }))
+      return jsonResponse({ message: 'Too many requests' }, 429, origin, { 'Retry-After': '60' })
+    }
+
+    const globalLimit = await env.SHARE_ANALYTICS_GLOBAL_RATE_LIMITER.limit({ key: source })
+    if (!globalLimit.success) {
+      console.warn(JSON.stringify({ event: 'share_analytics_rate_limited', scope: 'global', source }))
+      return jsonResponse({ message: 'Too many requests' }, 429, origin, { 'Retry-After': '60' })
+    }
+  } catch (error) {
+    console.error(JSON.stringify({
+      event: 'share_analytics_rate_limit_failed',
+      source,
+      error: error instanceof Error ? error.message : 'unknown',
+    }))
+    return jsonResponse({ message: 'Unable to accept analytics' }, 503, origin, {
+      'Retry-After': '60',
+    })
   }
 
   const contentType = request.headers.get('Content-Type') ?? ''
@@ -108,7 +133,10 @@ const handlePost = async (request: Request, env: Env): Promise<Response> => {
     )
   } catch (error) {
     if (error instanceof Error && error.message.includes('share analytics quota exceeded')) {
-      return jsonResponse({ message: 'Daily analytics limit reached' }, 429, origin)
+      console.warn(JSON.stringify({ event: 'share_analytics_daily_quota_reached', source }))
+      return jsonResponse({ message: 'Daily analytics limit reached' }, 429, origin, {
+        'Retry-After': '3600',
+      })
     }
     console.error(
       JSON.stringify({

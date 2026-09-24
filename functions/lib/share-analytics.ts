@@ -1,7 +1,7 @@
 export const SHARE_ANALYTICS_VERSION = 1
 export const MAX_ANALYTICS_EVENTS = 32
-export const MAX_EVENT_COUNT = 100
-export const MAX_TOTAL_EVENT_COUNT = 500
+export const MAX_EVENT_COUNT = 50
+export const MAX_TOTAL_EVENT_COUNT = 100
 export const MAX_EVENT_AGE_DAYS = 7
 
 export const SHARE_TARGETS = [
@@ -148,7 +148,11 @@ export const parseShareAnalyticsBatch = (
   return { batchId: value.batchId.toLowerCase(), events }
 }
 
-const extensionProtocols = new Set(['chrome-extension:', 'moz-extension:', 'safari-web-extension:'])
+const chromiumExtensionIds = new Set([
+  'lkmnoeojcpmcpjlbhbjbilpmccfljdoj',
+  'kfdimcpljilcbhmlogkagbbjpjkdihom',
+])
+const firefoxExtensionOrigin = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export const classifyAnalyticsOrigin = (request: Request): AnalyticsSource | null => {
   const origin = request.headers.get('Origin')
@@ -157,7 +161,13 @@ export const classifyAnalyticsOrigin = (request: Request): AnalyticsSource | nul
 
   try {
     const parsed = new URL(origin)
-    return extensionProtocols.has(parsed.protocol) && parsed.hostname ? 'extension' : null
+    if (parsed.protocol === 'chrome-extension:' && chromiumExtensionIds.has(parsed.hostname)) {
+      return 'extension'
+    }
+    if (parsed.protocol === 'moz-extension:' && firefoxExtensionOrigin.test(parsed.hostname)) {
+      return 'extension'
+    }
+    return null
   } catch {
     return null
   }

@@ -3,7 +3,10 @@
 Sharing analytics intentionally stores daily aggregate counters rather than raw
 events. Neither the extension nor the homepage sends book metadata, page URLs,
 timestamps, user or installation identifiers, device information, cookies, or
-IP addresses as analytics fields.
+IP addresses as analytics fields. For abuse prevention only, the Worker derives
+a SHA-256 rate-limit key from the client address, route, and current UTC day.
+The raw address and derived key are never written to application logs or D1,
+and the key changes daily.
 
 ## Event definitions
 
@@ -30,19 +33,32 @@ idempotent but is never reused as a user or installation identifier.
 2. Apply the production migration with `pnpm run db:migrate:remote`.
 3. Deploy the dedicated ingestion Worker with `pnpm run analytics:worker:deploy`.
    Its write route is `doubanbook.plus/api/share-analytics`; its checked-in
-   rate-limit binding caps extension and homepage sources independently at 120
-   requests per minute per Cloudflare location. Atomic D1 triggers additionally
-   cap each source at 100,000 newly accepted event rows and 250,000 reported
-   events per UTC day. Idempotent retries do not consume this global quota. The
-   same Worker serves the read-only extension-store cache described below.
+   rate-limit bindings cap each daily pseudonymous client at 10 requests per
+   minute and cap extension and homepage sources independently at 120 requests
+   per minute per Cloudflare location. Atomic D1 triggers additionally cap each
+   source at 10,000 newly accepted event rows and 25,000 reported events per UTC
+   day. Idempotent retries do not consume this global quota. The same Worker
+   serves the read-only extension-store cache described below.
 4. Deploy the Pages revision, then release the extension revision.
 5. Submit a test batch twice and confirm the daily counter increases only once.
+
+Each payload accepts at most 50 occurrences of one event and 100 reported
+events in total. Chrome and Edge requests must also use the known production
+extension IDs; Firefox uses a per-install extension origin and is validated by
+its UUID shape. These checks reduce accidental and low-effort abuse but do not
+turn a public, anonymous endpoint into authenticated telemetry.
 
 The ingestion Worker runs a daily Cron Trigger that deletes delivery receipts
 after eight calendar days. Daily anonymous aggregate counters can be retained
 as long-term product trends. Origin checks and strict payload validation reduce
 noise but are not authentication; monitor 429s and D1 volume because a public
 analytics endpoint can never treat CORS as an abuse boundary.
+
+Workers Logs and sampled traces are enabled in the checked-in configuration.
+Alert on sustained `share_analytics_rate_limited`,
+`share_analytics_daily_quota_reached`, or `share_analytics_storage_failed`
+events. The log records contain only the limiter scope and analytics source,
+never a client address or derived rate-limit key.
 
 ## Extension store statistics
 

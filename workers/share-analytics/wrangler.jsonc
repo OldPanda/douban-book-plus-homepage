@@ -25,12 +25,25 @@
   ],
   "ratelimits": [
     {
-      "name": "SHARE_ANALYTICS_RATE_LIMITER",
+      "name": "SHARE_ANALYTICS_GLOBAL_RATE_LIMITER",
       "namespace_id": "910211",
       "simple": {
         "limit": 120,
         "period": 60
       }
+    },
+    {
+      "name": "SHARE_ANALYTICS_CLIENT_RATE_LIMITER",
+      "namespace_id": "910212",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
     }
-  ]
+  ],
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 }
+  }
 }

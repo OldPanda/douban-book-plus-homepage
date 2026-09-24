@@ -10,5 +10,23 @@
       "database_id": "34d7c35a-442e-4356-a8d1-5d2147ab667d",
       "remote": true
     }
+  ],
+  "ratelimits": [
+    {
+      "name": "SHARE_ANALYTICS_GLOBAL_RATE_LIMITER",
+      "namespace_id": "910211",
+      "simple": {
+        "limit": 120,
+        "period": 60
+      }
+    },
+    {
+      "name": "SHARE_ANALYTICS_CLIENT_RATE_LIMITER",
+      "namespace_id": "910212",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    }
   ]
 }

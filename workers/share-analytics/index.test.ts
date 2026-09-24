@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import worker from './index.ts'
 import { deleteExpiredReceipts } from './maintenance.ts'
 
-const extensionOrigin = 'chrome-extension://abcdefghijklmnop'
+const extensionOrigin = 'chrome-extension://lkmnoeojcpmcpjlbhbjbilpmccfljdoj'
 
 const request = (batchId = '6f5db6e2-2037-4e95-91f8-d8efad012d08'): Request =>
   new Request('https://doubanbook.plus/api/share-analytics', {
@@ -21,20 +21,32 @@ const request = (batchId = '6f5db6e2-2037-4e95-91f8-d8efad012d08'): Request =>
 
 test('rate limits an otherwise valid extension request before writing to D1', async () => {
   const env = {
-    SHARE_ANALYTICS_RATE_LIMITER: { limit: async () => ({ success: false }) },
+    SHARE_ANALYTICS_CLIENT_RATE_LIMITER: { limit: async () => ({ success: false }) },
+    SHARE_ANALYTICS_GLOBAL_RATE_LIMITER: {
+      limit: async () => assert.fail('global limiter must not run after a client rejection'),
+    },
     DB: { prepare: () => assert.fail('D1 must not be called after rate limiting') },
   } as unknown as Parameters<typeof worker.fetch>[1]
 
   const response = await worker.fetch(request(), env)
   assert.equal(response.status, 429)
   assert.equal(response.headers.get('Access-Control-Allow-Origin'), extensionOrigin)
+  assert.equal(response.headers.get('Retry-After'), '60')
 })
 
 test('accepts a valid batch through the rate limiter and creates one D1 statement', async () => {
   const statements: unknown[] = []
+  const rateLimitKeys: string[] = []
   const prepared = { bind: (...values: unknown[]) => ({ values }) }
+  const limiter = {
+    limit: async ({ key }: { key: string }) => {
+      rateLimitKeys.push(key)
+      return { success: true }
+    },
+  }
   const env = {
-    SHARE_ANALYTICS_RATE_LIMITER: { limit: async () => ({ success: true }) },
+    SHARE_ANALYTICS_CLIENT_RATE_LIMITER: limiter,
+    SHARE_ANALYTICS_GLOBAL_RATE_LIMITER: limiter,
     DB: {
       prepare: () => prepared,
       batch: async (batch: unknown[]) => {
@@ -47,12 +59,30 @@ test('accepts a valid batch through the rate limiter and creates one D1 statemen
   const response = await worker.fetch(request(), env)
   assert.equal(response.status, 202)
   assert.equal(statements.length, 1)
+  assert.equal(rateLimitKeys.length, 2)
+  assert.match(rateLimitKeys[0], /^[0-9a-f]{64}$/)
+  assert.equal(rateLimitKeys[1], 'extension')
+})
+
+test('fails closed when the analytics rate-limit service is unavailable', async () => {
+  const env = {
+    SHARE_ANALYTICS_CLIENT_RATE_LIMITER: {
+      limit: async () => { throw new Error('rate limiter unavailable') },
+    },
+    SHARE_ANALYTICS_GLOBAL_RATE_LIMITER: { limit: async () => ({ success: true }) },
+    DB: { prepare: () => assert.fail('D1 must not be called after a limiter failure') },
+  } as unknown as Parameters<typeof worker.fetch>[1]
+
+  const response = await worker.fetch(request(), env)
+  assert.equal(response.status, 503)
+  assert.equal(response.headers.get('Retry-After'), '60')
 })
 
 test('rejects a valid batch when its source has exhausted the global daily quota', async () => {
   const prepared = { bind: (...values: unknown[]) => ({ values }) }
   const env = {
-    SHARE_ANALYTICS_RATE_LIMITER: { limit: async () => ({ success: true }) },
+    SHARE_ANALYTICS_CLIENT_RATE_LIMITER: { limit: async () => ({ success: true }) },
+    SHARE_ANALYTICS_GLOBAL_RATE_LIMITER: { limit: async () => ({ success: true }) },
     DB: {
       prepare: () => prepared,
       batch: async () => { throw new Error('D1_ERROR: share analytics quota exceeded') },
@@ -61,6 +91,7 @@ test('rejects a valid batch when its source has exhausted the global daily quota
 
   const response = await worker.fetch(request(), env)
   assert.equal(response.status, 429)
+  assert.equal(response.headers.get('Retry-After'), '3600')
 })
 
 test('scheduled cleanup removes receipts at the eight-day boundary', async () => {
