@@ -23,7 +23,7 @@
     "vitepress": "1.6.4",
     "vue": "3.5.40",
     "vue-tsc": "3.3.10",
-    "wrangler": "4.138.0"
+    "wrangler": "4.147.0"
   },
   "pnpm": {
     "overrides": {
