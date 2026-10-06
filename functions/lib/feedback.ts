@@ -1,4 +1,5 @@
 import { feedbackHostname, type TurnstileEnv } from './turnstile.ts'
+import { validPublicFormSecret, type PublicFormEnv } from './public-form-rate-limit.ts'
 
 export interface FeedbackSubmission {
   requestId: string
@@ -11,7 +12,7 @@ export interface FeedbackSubmission {
 // accept routing labels or project destinations from visitor-supplied input.
 export const feedbackIssueLabel = 'douban-book-plus-feedback'
 
-export type FeedbackEnv = Pick<Env, 'DB'> & TurnstileEnv & {
+export type FeedbackEnv = PublicFormEnv & TurnstileEnv & {
   FEEDBACK_ENABLED?: string
   FEEDBACK_ORIGIN?: string
   FEEDBACK_GITHUB_TOKEN?: string
@@ -27,6 +28,7 @@ export const feedbackEnabled = (env: FeedbackEnv): boolean =>
   env.FEEDBACK_ENABLED === 'true' && Boolean(env.FEEDBACK_GITHUB_TOKEN?.trim())
   && Boolean(env.FEEDBACK_ORIGIN) && validFeedbackRepository(env.FEEDBACK_GITHUB_REPOSITORY)
   && Boolean(env.TURNSTILE_SECRET?.trim()) && feedbackHostname(env) !== null
+  && validPublicFormSecret(env.PUBLIC_FORM_HMAC_SECRET)
 
 export const parseFeedback = (value: unknown): FeedbackSubmission | null => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null

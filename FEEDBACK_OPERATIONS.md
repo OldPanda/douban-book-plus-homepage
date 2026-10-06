@@ -5,7 +5,26 @@ It stores accepted submissions in the existing D1 database and creates issues in
 the private repository configured on the server. No visitor GitHub account is needed. The browser receives only
 a random receipt ID, never a private issue URL, issue number, credential, or repository data.
 
-## Last verified production release
+## Last verified production release (2026-10-06)
+
+- HMAC security release `e692aaa3-7b60-4b93-aa41-8ea38e504ca1` is deployed to
+  `doubanbook.plus` in the Pages Production environment (`master`). It was uploaded
+  from the tested working tree before committing; no Git commit or push was performed.
+- `PUBLIC_FORM_HMAC_SECRET` was generated from 32 random bytes and uploaded directly
+  as an encrypted Production secret, without displaying or saving its value locally.
+  All three existing encrypted secrets were preserved.
+- The Functions were deployed before migration `0009_public_form_hmac_keys.sql`.
+  The migration is applied, there are no pending migrations, and the database guard
+  exists. Aggregate checks showed HMAC rows for both form scopes and zero legacy
+  rows. No survey answers, feedback records, or issues were deleted.
+- The homepage, privacy page, terms page, and feedback configuration returned HTTP
+  200; feedback remains enabled. Empty requests to both form APIs returned HTTP 400
+  before and after migration, without storing submissions or creating issues.
+  All 65 tests, type checks, website/Functions builds, and Worker dry run passed.
+- The independent analytics Worker was not redeployed. Real-token feedback delivery
+  and token replay were not retested in this release.
+
+## Previous security release
 
 This is the recorded verification of the security release below, not a live
 deployment monitor. Recheck deployment metadata and pending migrations before
@@ -48,9 +67,11 @@ each release; do not infer that a scheduled job has run merely from its deployme
 
 ## Production prerequisites and subsequent releases
 
-The recorded production release already has these prerequisites. Reuse its
-database and encrypted secrets; these steps also describe provisioning a new
-environment and must not be treated as instructions to recreate live resources.
+The latest recorded production release has the original prerequisites below plus
+`PUBLIC_FORM_HMAC_SECRET` and migration `0009`. Preserve the existing database and
+secrets. For environments still running pre-HMAC code, follow the
+[HMAC upgrade](#hmac-rate-limit-upgrade). These steps also describe provisioning a
+new environment and must not be treated as instructions to recreate live resources.
 
 1. Create a fine-grained GitHub personal access token belonging to an account with
    access to the intended private repository. Select **only that repository**, with **Issues: Read and write**
@@ -73,6 +94,8 @@ environment and must not be treated as instructions to recreate live resources.
    `0008_uninstall_retention_index.sql`. All three were applied in the recorded
    release. `pnpm run db:migrate:remote` applies all pending migrations, so inspect
    that list before running it rather than replaying individual migration files.
+   Migration `0009_public_form_hmac_keys.sql` must follow the HMAC-aware Pages
+   deployment on an existing site; see the upgrade sequence below.
 5. The checked-in `env.production.vars` configuration uses
    `FEEDBACK_ENABLED: "true"`, `FEEDBACK_ORIGIN: "https://doubanbook.plus"`, and
    `TURNSTILE_HOSTNAMES: "doubanbook.plus"`. It also explicitly repeats the existing
@@ -152,6 +175,48 @@ a widget permitting the exact local hostname. Set both `FEEDBACK_ORIGIN` (includ
 port) and `TURNSTILE_HOSTNAMES` to that local deployment; never broaden production.
 No production secret is needed to run the automated checks.
 
+## HMAC rate-limit upgrade
+
+Production completed this upgrade in the release recorded above. The sequence
+below applies to environments still running pre-HMAC code. Both feedback and
+uninstall submissions require a dedicated `PUBLIC_FORM_HMAC_SECRET`:
+exactly 64 hexadecimal characters encoding 32 cryptographically random bytes.
+Generate it with a trusted cryptographic generator or password manager. Do not
+reuse a GitHub token, Turnstile secret, public site key, or committed test fixture.
+
+1. Add it as an **encrypted secret** to the existing Pages project's Production
+   environment before the release. Keep it out of source, Wrangler `vars`, chat,
+   CLI arguments, logs, D1, and frontend environment variables. For local API
+   testing, use a separately generated value in an ignored `.dev.vars` file.
+   Preview environments must use separate secrets and isolated databases; never
+   bind an old preview deployment to the production database.
+2. Run `pnpm run check`, then deploy the HMAC-aware Pages Functions with the secret.
+   They work against the existing `0007` table without first applying `0009`.
+   Missing or malformed secrets return HTTP 503 before any database operation;
+   the feedback configuration endpoint also reports `enabled: false`. There is
+   no fallback to unkeyed hashing. A normal D1 or Web Crypto failure fails closed.
+3. Verify the active deployment, then review pending migrations and apply
+   `0009_public_form_hmac_keys.sql` to the verified database via the normal migration
+   process. It deletes only legacy, unkeyed limiter rows (including `global`),
+   preserves HMAC counters and submitted data, and installs an insert guard so
+   old Functions cannot reintroduce unkeyed hashes. This also removes old keys
+   on an idle site. Existing D1 backups/Time Travel may still contain historical
+   rows; restrict backup access and follow the provider's retention controls.
+4. Check both form paths with owner-approved test submissions and verify only
+   version-prefixed HMAC counters are created. Check HTTP statuses and aggregate
+   counts, not raw client keys or secret values. Do not roll back to pre-HMAC
+   code after the migration; old writers will fail closed.
+
+The transition or secret rotation changes client keys and may give a client a
+fresh per-minute allowance. The shared 30-attempt cap still counts all admitted
+client rows; deleting legacy counters during migration can reset their allowance.
+Schedule the transition during low traffic and keep the same secret across active
+instances. This is not a request to rotate other credentials or deploy the analytics
+Worker, whose non-persisted rate limiter is unchanged.
+
+These bindings follow Cloudflare's [Pages secret configuration](https://developers.cloudflare.com/pages/functions/bindings/#secrets)
+and use its supported [Web Crypto HMAC operations](https://developers.cloudflare.com/workers/runtime-apis/web-crypto/).
+
 ## Security maintenance
 
 - `.env` and `.env.*` are ignored at every directory level. Only `.env.example`
@@ -179,7 +244,8 @@ No production secret is needed to run the automated checks.
   distinct form scopes: 3 client attempts and 30 global attempts per fixed UTC minute.
   One atomic statement checks the client cap and the sum of admitted attempts for
   that scope/window. Rejected clients do not consume shared allowance. The shared cap
-  also bounds client-row creation. Hashes rotate each minute; raw addresses
+  also bounds client-row creation. HMAC-SHA-256 keys use a server-only secret,
+  rotate each minute, and carry a `hmac-sha256:v1:` format prefix; raw addresses
   are never persisted. Counters are not linked to feedback records. They expire after
   their minute; current and preceding windows are retained to protect in-flight requests.
   Older counters are deleted on subsequent form requests, not by an automatic TTL.

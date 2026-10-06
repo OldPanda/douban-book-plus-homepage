@@ -1,6 +1,6 @@
 import { parseUninstallSubmission } from '../lib/uninstall-survey.ts'
 import { readJsonBody, RequestTooLargeError } from '../lib/json-body.ts'
-import { limitPublicForm } from '../lib/public-form-rate-limit.ts'
+import { limitPublicForm, type PublicFormEnv } from '../lib/public-form-rate-limit.ts'
 
 const jsonResponse = (body: object, status: number, extraHeaders: HeadersInit = {}): Response =>
   Response.json(body, {
@@ -17,13 +17,13 @@ const isSameOrigin = (request: Request): boolean => {
   return origin !== null && origin === new URL(request.url).origin
 }
 
-export const onRequestPost: PagesFunction<Env> = async (context) => {
+export const onRequestPost: PagesFunction<PublicFormEnv> = async (context) => {
   if (!isSameOrigin(context.request)) {
     return jsonResponse({ message: 'Forbidden' }, 403)
   }
 
   try {
-    if (!await limitPublicForm(context.env.DB, context.request, 'uninstall-survey')) {
+    if (!await limitPublicForm(context.env.DB, context.request, 'uninstall-survey', context.env.PUBLIC_FORM_HMAC_SECRET)) {
       console.warn(JSON.stringify({ event: 'uninstall_survey_rate_limited' }))
       return jsonResponse({ message: 'Too many requests' }, 429, { 'Retry-After': '60' })
     }

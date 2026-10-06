@@ -20,7 +20,7 @@ export const onRequestPost: PagesFunction<FeedbackEnv> = async ({ request, env }
     return json({ code: 'invalid_content_type' }, 415)
   }
   try {
-    if (!await limitPublicForm(env.DB, request, 'homepage-feedback')) {
+    if (!await limitPublicForm(env.DB, request, 'homepage-feedback', env.PUBLIC_FORM_HMAC_SECRET)) {
       return json({ code: 'rate_limited' }, 429)
     }
   } catch {

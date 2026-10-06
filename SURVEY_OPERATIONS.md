@@ -2,19 +2,26 @@
 
 The uninstall survey stores the three answers, extension version, and submission time in the `uninstall_responses` table of the existing D1 database. These response records do not contain request headers, IP addresses, user agents, cookies, or extension/user identifiers.
 
-For abuse prevention, the Pages Function derives a pseudonymous SHA-256 key from the form scope (`uninstall-survey`), the current fixed UTC-minute window, and the Cloudflare-provided client address. The derived key, scope, window start, and admitted-attempt count **are stored in D1**, separately in `public_form_rate_limits`; they are not linked to survey responses. Neither the raw address nor the derived key is written to application logs, and the raw address is not persisted in D1. Keys rotate each minute and differ from the homepage-feedback scope. Requests without a client address share a conservative fallback counter.
+For abuse prevention, the Pages Function derives a pseudonymous HMAC-SHA-256 key from the form scope (`uninstall-survey`), the current fixed UTC-minute window, and the Cloudflare-provided client address, using the server-only `PUBLIC_FORM_HMAC_SECRET`. The derived key, scope, window start, and admitted-attempt count **are stored in D1**, separately in `public_form_rate_limits`; they are not linked to survey responses. Neither the raw address nor the derived key is written to application logs, and the raw address is not persisted in D1. The secret is never stored in D1, logs, or client assets. Unlike an unkeyed address hash, a database copy alone cannot be used to test candidate addresses without the secret. Keys rotate each minute and differ from the homepage-feedback scope. Requests without a client address share a conservative fallback counter.
 
 ## Deployment and upgrades
 
 The existing production deployment already uses the database and migrations through
-`0008_uninstall_retention_index.sql`. Reuse that database for updates; provision a
+`0009_public_form_hmac_keys.sql` (verified 2026-10-06). Reuse that database for updates; provision a
 new one only for a deliberately separate environment.
+
+**HMAC upgrade:** production release `e692aaa3` has the encrypted secret and
+migration `0009`. For an older environment, provision `PUBLIC_FORM_HMAC_SECRET`
+and follow the [HMAC rollout sequence](FEEDBACK_OPERATIONS.md#hmac-rate-limit-upgrade)
+for migration `0009_public_form_hmac_keys.sql`. Do not apply that migration to a
+live pre-HMAC deployment: its guard rejects legacy writers. It removes only legacy
+rate-limit counters, not responses or daily quotas.
 
 1. Install dependencies with `pnpm install --frozen-lockfile`.
 2. Download and compare the live Pages configuration before opting into the checked-in Wrangler configuration: `pnpm wrangler pages download config douban-book-plus-homepage`. Run the download in a temporary directory so it does not overwrite the checked-in configuration.
 3. Verify the existing `douban-book-plus-feedback` database and `DB` binding in `wrangler.jsonc` and the Pages production environment. For a new environment, provision a separate database and update its binding deliberately.
 4. If bindings or compatibility settings change, run `pnpm exec wrangler types ./functions/types.d.ts` and review the generated types.
-5. Review pending migrations before applying the production schema with `pnpm run db:migrate:remote`. Migration `0007_public_form_rate_limits.sql` supplies the form limiter table; `0008_uninstall_retention_index.sql` adds the index used by retention cleanup.
+5. Review pending migrations before applying the production schema with `pnpm run db:migrate:remote`. Migration `0007_public_form_rate_limits.sql` supplies the form limiter table; `0008_uninstall_retention_index.sql` adds the index used by retention cleanup. For the HMAC upgrade of an existing deployment, defer migration `0009` until the updated Functions and secret are deployed, as described above.
 6. Run `pnpm run check`, then deploy through the existing Cloudflare Pages release process. Deploy the analytics Worker as well to enable its scheduled uninstall-response cleanup; deploying Pages alone does not update that Worker.
 7. With owner approval, submit one clearly identified test response from `/uninstall?version=1.6.0` (replace the example version with the release under test). Inspect it privately using the query below; do not copy free-text responses into public logs or issues.
 
@@ -46,7 +53,8 @@ within two minutes, or join the keys to response records during investigation.
 Monitor Pages Function logs for sustained `uninstall_survey_rate_limited`,
 `uninstall_survey_rate_limit_failed`, `uninstall_survey_daily_quota_reached`, or
 `uninstall_survey_storage_failed` events. Limit exhaustion returns HTTP 429;
-limiter database failures fail closed with HTTP 503 before storing a response.
+limiter database/crypto failures and missing or malformed HMAC secrets fail closed
+with HTTP 503 before storing a response. Invalid secrets cause no D1 access.
 These application log records never include the client address or derived key.
 
 For an existing deployment created with `0001_create_uninstall_responses.sql`,

@@ -26,11 +26,13 @@ const setup = (t: TestContext) => {
   const db = new DatabaseSync(':memory:')
   db.exec(readFileSync(new URL('../../migrations/0006_homepage_feedback.sql', import.meta.url), 'utf8'))
   db.exec(readFileSync(new URL('../../migrations/0007_public_form_rate_limits.sql', import.meta.url), 'utf8'))
+  db.exec(readFileSync(new URL('../../migrations/0009_public_form_hmac_keys.sql', import.meta.url), 'utf8'))
   t.after(() => db.close())
   const env = {
     FEEDBACK_ENABLED: 'true', FEEDBACK_ORIGIN: 'https://doubanbook.plus', FEEDBACK_GITHUB_TOKEN: 'test-only-token',
     FEEDBACK_GITHUB_REPOSITORY: repositoryName,
     TURNSTILE_SECRET: 'test-only-turnstile-secret', TURNSTILE_HOSTNAMES: 'doubanbook.plus',
+    PUBLIC_FORM_HMAC_SECRET: 'ab'.repeat(32), // Test-only, not a deployment secret.
     DB: {
       prepare(sql: string) {
         return { bind(...values: Array<string | number | null>) {
@@ -98,6 +100,19 @@ test('rejects origin mismatch, invalid body, large body and wrong content type b
   assert.equal(db.prepare('SELECT count(*) AS n FROM homepage_feedback').get()?.n, 0)
 })
 
+test('feedback stays disabled without a valid HMAC secret, before D1 or outbound calls', async t => {
+  const { env, context } = setup(t)
+  t.mock.method(env.DB, 'prepare', () => assert.fail('must not access D1'))
+  t.mock.method(globalThis, 'fetch', () => assert.fail('must not make outbound requests'))
+  for (const secret of [undefined, '', ' ', 'short', 'z'.repeat(64)]) {
+    env.PUBLIC_FORM_HMAC_SECRET = secret
+    assert.deepEqual(await (await onRequestGet(context())).json(), { enabled: false })
+    const response = await onRequestPost(context())
+    assert.equal(response.status, 503)
+    assert.deepEqual(await response.json(), { code: 'unavailable' })
+  }
+})
+
 test('honeypot avoids storing and forwarding bot submissions', async t => {
   const { context, db } = setup(t)
   mockGithub(t, async () => assert.fail('must not call GitHub'))
@@ -109,7 +124,7 @@ test('rate limiting fails closed, including service failures', async t => {
   const { context, db } = setup(t)
   for (let i = 0; i < 10; i++) {
     db.prepare('INSERT INTO public_form_rate_limits VALUES (?, ?, ?, ?)')
-      .run('homepage-feedback', `test-client-${i}`, Math.floor(Date.now() / 60_000) * 60, 3)
+      .run('homepage-feedback', `hmac-sha256:v1:${i.toString(16).padStart(64, '0')}`, Math.floor(Date.now() / 60_000) * 60, 3)
   }
   assert.equal((await onRequestPost(context())).status, 429)
   db.exec('DROP TABLE public_form_rate_limits')

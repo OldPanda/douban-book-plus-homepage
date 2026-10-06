@@ -27,6 +27,12 @@ pnpm exec wrangler pages dev docs/.vitepress/dist --port 8788
 
 Feedback is disabled by default locally. Automated tests mock external services
 and need no production secrets. Never use production credentials for local tests.
+Both form APIs require `PUBLIC_FORM_HMAC_SECRET`: a server-only secret containing
+32 cryptographically random bytes encoded as 64 hexadecimal characters. For
+local API testing, use a separate value in ignored `.dev.vars`, never public
+Wrangler variables. Missing or invalid secrets reject submissions with HTTP 503.
+Before upgrading an existing deployment, follow the [HMAC rollout sequence](FEEDBACK_OPERATIONS.md#hmac-rate-limit-upgrade);
+migration `0009` must run after the HMAC-aware Functions are deployed.
 
 ## Validation and deployment
 
