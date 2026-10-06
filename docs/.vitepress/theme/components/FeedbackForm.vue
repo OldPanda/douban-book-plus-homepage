@@ -118,7 +118,7 @@ const submit = async (): Promise<void> => {
         </label>
         <TurnstileChallenge v-if="available" ref="challenge" @token="receiveToken" />
         <div class="feedback-actions">
-          <button type="submit" :disabled="!available || !consent || !turnstileToken || submitting">{{ submitting ? '正在提交…' : '发送反馈' }} <span aria-hidden="true">→</span></button>
+          <button class="book-action-button" type="submit" :disabled="!available || !consent || !turnstileToken || submitting">{{ submitting ? '正在提交…' : '发送反馈' }} <span aria-hidden="true">→</span></button>
           <span v-if="checking">正在检查服务…</span>
           <span v-else-if="!available">反馈服务暂未开放，请稍后再来。</span>
           <span v-else-if="!turnstileToken && !submitting">请先完成安全验证。</span>
@@ -137,7 +137,7 @@ label { display: block; font-size: 13px; font-weight: 500; color: #394352; }
 input:not([type=checkbox]), textarea { display: block; width: 100%; margin: 8px 0 20px; padding: 12px 14px; border: 1px solid #dce1e8; border-radius: 8px; background: #fff; font: inherit; font-size: 13px; line-height: 1.7; color: #202329; }
 textarea { resize: vertical; min-height: 130px; }
 input::placeholder, textarea::placeholder { color: #8a929d; }
-input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid #2469c4; outline-offset: 3px; }
+input:focus-visible, textarea:focus-visible { outline: 2px solid #2469c4; outline-offset: 3px; }
 .message-label { display: flex; justify-content: space-between; gap: 12px; }
 .message-label > span { color: #8a929d; font-size: 11px; }
 .feedback-trap { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
@@ -146,8 +146,6 @@ input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px
 .feedback-consent input { margin-top: 4px; flex-shrink: 0; accent-color: #2469c4; }
 .feedback-consent a { color: #2469c4; text-decoration: underline; text-underline-offset: 3px; }
 .feedback-actions { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin-top: 22px; }
-.feedback-actions button { padding: 10px 22px; display: flex; gap: 20px; border: 1px solid #88afe3; border-radius: 22px; background: #d8e9ff; color: #23486e; font-size: 13px; cursor: pointer; }
-.feedback-actions button:disabled { opacity: .5; cursor: not-allowed; }
 .feedback-actions > span { color: #727d89; font-size: 11px; }
 .feedback-error { margin-top: 14px; color: #a03535; font-size: 12px; }
 .feedback-success { text-align: center; padding: 18px 0; }

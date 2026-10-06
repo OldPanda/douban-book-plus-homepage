@@ -6,11 +6,16 @@ import Vendors from './Vendors.vue'
 import ShareReferralAnalytics from './ShareReferralAnalytics.vue'
 import FeedbackForm from './FeedbackForm.vue'
 import { detectBrowserStore, type StoreName } from './extension-stores'
+import { bookCoverPool, pickClosingBooks } from './book-covers'
 
 const detectedBrowser = ref<StoreName>()
 
+// Stable SSR/no-JS fallback; choose a fresh subset only after hydration.
+const closingBooks = ref(bookCoverPool.slice(0, 6))
+
 onMounted(() => {
   detectedBrowser.value = detectBrowserStore(navigator.userAgent)
+  closingBooks.value = pickClosingBooks()
 })
 
 const faqs = [
@@ -56,16 +61,14 @@ const faqs = [
     <main id="main-content" tabindex="-1">
       <section class="hero" aria-labelledby="hero-heading">
         <div class="hero-copy">
-          <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> 给爱读书的你，一个小小的加号</p>
           <h1 id="hero-heading">在豆瓣发现好书，<br />下一步，<span class="accent-word">开始阅读。</span></h1>
           <p class="hero-description">把豆瓣书页，变成阅读的起点。<br class="mobile-break" />一键连接多个电子书平台，<br class="desktop-break" />少一点来回搜索，多一点沉浸阅读。</p>
-          <div id="install" class="hero-stores" role="region" aria-labelledby="install-heading">
-            <h2 id="install-heading">免费安装，无需注册。选择你的浏览器，即刻开始。</h2>
+          <div id="install" class="hero-stores" role="region" aria-label="浏览器扩展商店">
             <ExtensionStores :recommended-store="detectedBrowser" />
             <p class="section-note">用户数与评分来自各扩展商店，定期更新；最新数据以商店页面为准。</p>
           </div>
           <div class="hero-actions">
-            <a class="pill-button secondary-button" href="#how-it-works">了解如何使用 <span aria-hidden="true">↓</span></a>
+            <a class="book-action-button" href="#how-it-works">了解如何使用 <span aria-hidden="true">↓</span></a>
           </div>
         </div>
 
@@ -185,9 +188,17 @@ const faqs = [
 
       <section class="closing-section" aria-labelledby="closing-heading">
         <div class="closing-inner">
-          <span class="book-decoration book-one" aria-hidden="true">READ<br />MORE.</span>
-          <div><p class="section-kicker">下一本好书，正在等你</p><h2 id="closing-heading">发现的欢喜，<br />不妨接着<span class="accent-word">读下去。</span></h2><a href="#install" class="pill-button primary-button">免费安装 Douban Book+ <span aria-hidden="true">↗</span></a><p class="closing-note">发现好书靠豆瓣，阅读好书靠 Douban Book+</p></div>
-          <span class="book-decoration book-two" aria-hidden="true">好<br />读<br />书</span>
+          <div class="closing-copy"><p class="section-kicker">下一本好书，正在等你</p><h2 id="closing-heading">发现的欢喜，<br />不妨接着<span class="accent-word">读下去。</span></h2><a href="#install" class="book-action-button">免费安装 Douban Book+ <span aria-hidden="true">↗</span></a><p class="closing-note">发现好书靠豆瓣，阅读好书靠 Douban Book+</p></div>
+          <ul class="closing-books" aria-label="豆瓣读书 Top 250 图书精选">
+            <li v-for="book in closingBooks" :key="book.subject" class="closing-book">
+              <a :href="`https://book.douban.com/subject/${book.subject}/`" target="_blank" rel="noopener noreferrer"
+                :aria-label="`在豆瓣查看《${book.title}》（新窗口）`">
+                <img :src="`/book-covers/${book.cover}`" :alt="`《${book.title}》封面`"
+                  :width="book.width" :height="book.height" loading="lazy" decoding="async" />
+              </a>
+            </li>
+          </ul>
+          <p class="cover-credit">封面选自 <a href="https://book.douban.com/top250" target="_blank" rel="noopener noreferrer">豆瓣读书 Top 250</a> · 版权归各自权利人所有</p>
         </div>
       </section>
     </main>
@@ -205,19 +216,12 @@ const faqs = [
 .section-shell { width: min(1040px, calc(100% - 48px)); margin: 0 auto; }
 .hero { padding: 77px 24px 0; background: radial-gradient(ellipse 480px 320px at 50% 6%, #edf5ff80, transparent); }
 .hero-copy { text-align: center; }
-.eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: 1.5px; color: var(--muted); }
-.status-dot { width: 6px; height: 6px; background: #5b99d9; border-radius: 50%; box-shadow: 0 0 0 4px #eaf2fc; }
 .hero h1 { font-size: clamp(36px, 4.4vw, 58px); line-height: 1.38; font-weight: 600; letter-spacing: -2px; margin: 24px 0 20px; }
 .accent-word { color: var(--blue); font-family: 'Songti SC', 'STSong', 'SimSun', serif; font-weight: 500; }
 .hero-description { color: var(--muted); font-size: 16px; line-height: 1.9; }
 .mobile-break { display: none; }
 .hero-actions { display: flex; justify-content: center; gap: 12px; margin: 28px 0 17px; }
 .hero-stores { max-width: 1040px; margin: 30px auto 0; }
-.hero-stores h2 { margin-bottom: 20px; color: var(--muted); font-size: 13px; font-weight: 400; }
-.pill-button { display: inline-flex; justify-content: center; align-items: center; gap: 10px; min-height: 44px; padding: 10px 21px; border-radius: 50px; font-size: 14px; font-weight: 500; line-height: 1.4; transition: transform .18s, box-shadow .18s; }
-.pill-button:hover { transform: translateY(-2px); }
-.primary-button { color: #18395d; border: 1px solid #8baedf; background: linear-gradient(#f3f8ff 0%, #dceaff 25%, #b7d6ff 70%, #bbdafa); box-shadow: inset 0 1px 1px white, 0 4px 4px #2551830a, 0 8px 16px #25518312; text-shadow: 0 1px 1px #ffffffb3; }
-.secondary-button { border: 1px solid #dce0e5; background: linear-gradient(#fff, #f4f5f7); box-shadow: inset 0 1px 1px #fff, 0 2px 3px #00000003; }
 .product-preview { max-width: 944px; margin: 54px auto 0 !important; border: 1px solid #d7dee7; border-radius: 14px; box-shadow: 0 18px 60px -24px #20395733; overflow: hidden; background: #fff; }
 .chrome-frame { color: #47494e; text-align: left; border-bottom: 1px solid #d9dce2; }
 .chrome-frame svg { width: 16px; height: 16px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
@@ -307,20 +311,40 @@ details[open] .faq-symbol::after { display: none; }
 .faq-contact a { color: var(--blue); margin-left: 5px; }
 .closing-section { border-top: 1px solid var(--line); background: #f8faff; overflow: hidden; }
 .closing-inner { max-width: 1040px; margin: auto; padding: 76px 24px; position: relative; text-align: center; background-image: radial-gradient(#d3ddeb 1px, transparent 1px); background-size: 24px 24px; }
-.closing-inner > div { position: relative; z-index: 1; }
+.closing-copy { position: relative; z-index: 3; width: min(100%, 520px); margin: auto; }
 .closing-inner h2 { font-size: clamp(30px, 3.5vw, 43px); line-height: 1.5; letter-spacing: -1px; font-weight: 550; }
-.closing-inner .pill-button { margin-top: 25px; }
+.closing-inner .book-action-button { margin-top: 25px; }
 .closing-note { margin-top: 16px !important; font-size: 11px; color: #7a8695; }
-.book-decoration { position: absolute; width: 96px; height: 135px; top: 120px; display: flex; justify-content: center; align-items: center; text-align: left; border-radius: 3px 8px 8px 3px; box-shadow: inset 6px 0 0 #ffffff40, inset 8px 0 0 #0000000d, 10px 12px 25px #56708f14; border: 1px solid #0000000d; }
-.book-one { left: 9%; transform: rotate(-17deg); background: #d9e9f9; color: #627fa1; font: 19px/1.1 Georgia, serif; }
-.book-two { right: 9%; transform: rotate(15deg); background: #e2eadd; color: #7b8c6e; font: 19px/1.4 'Songti SC', serif; text-align: center; }
+.closing-books { margin: 0; padding: 0; list-style: none; }
+.closing-book { position: absolute; width: 124px; }
+.closing-book:nth-child(1) { left: 4%; top: 84px; transform: rotate(-27deg); z-index: 1; }
+.closing-book:nth-child(2) { left: 10%; top: 204px; width: 118px; transform: rotate(18deg); z-index: 2; }
+.closing-book:nth-child(3) { right: 3%; top: 172px; width: 128px; transform: rotate(26deg); z-index: 2; }
+.closing-book:nth-child(4) { right: 12%; top: 78px; width: 110px; transform: rotate(-16deg); z-index: 1; }
+.closing-book:nth-child(5) { left: 1%; top: 275px; width: 100px; transform: rotate(-12deg); z-index: 2; }
+.closing-book:nth-child(6) { right: 1%; top: 30px; width: 104px; transform: rotate(37deg); z-index: 2; }
+.closing-books .closing-book:focus-within { z-index: 4; }
+.closing-book a { display: block; border-radius: 3px; box-shadow: 2px 3px 1px #20395726, 7px 12px 18px #20395733; transition: transform .18s; }
+.closing-book a:hover { transform: translateY(-5px); }
+.closing-book img { display: block; width: 100%; height: auto; border-radius: 3px; }
+.cover-credit { position: relative; z-index: 3; margin-top: 42px !important; color: var(--muted); font-size: 10px; }
+.cover-credit a { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 960px) {
+  .closing-books { position: relative; width: min(100%, 440px); height: clamp(350px, 85vw, 410px); margin: 32px auto 0; }
+  .closing-book:nth-child(n) { width: clamp(70px, 21vw, 108px); }
+  .closing-book:nth-child(1) { left: 4%; top: 36px; transform: rotate(-31deg); }
+  .closing-book:nth-child(2) { left: 25%; top: 90px; transform: rotate(14deg); }
+  .closing-book:nth-child(3) { right: 23%; top: 18px; transform: rotate(22deg); }
+  .closing-book:nth-child(4) { right: 2%; top: 94px; transform: rotate(-19deg); z-index: 3; }
+  .closing-book:nth-child(5) { left: 8%; top: 46%; transform: rotate(-17deg); }
+  .closing-book:nth-child(6) { right: 18%; top: 52%; transform: rotate(32deg); z-index: 3; }
+  .cover-credit { margin-top: 28px !important; }
+}
 @media (max-width: 760px) {
   .hero { padding-top: 50px; }
   .hero h1 { letter-spacing: -1.3px; }
   .hero-description { font-size: 14px; }
-  .eyebrow { font-size: 10px; letter-spacing: 1px; }
   .hero-actions { gap: 9px; }
-  .pill-button { font-size: 12px; padding-inline: 15px; }
   .product-preview { margin-top: 38px !important; }
   .chrome-tabs { gap: 10px; padding-inline: 10px; }
   .browser-dots { gap: 5px; margin-right: 0; }
@@ -347,8 +371,6 @@ details[open] .faq-symbol::after { display: none; }
   .faq-list summary { font-size: 13px; padding-block: 20px; }
   .faq-answer { padding-right: 10px; }
   .closing-inner { padding-block: 54px; }
-  .book-decoration { opacity: .5; width: 62px; height: 90px; font-size: 13px; top: 115px; }
-  .book-one { left: -25px; }.book-two { right: -25px; }
 }
 @media (max-width: 400px) {
   .section-shell { width: calc(100% - 36px); }
@@ -356,10 +378,10 @@ details[open] .faq-symbol::after { display: none; }
   .hero h1 { font-size: 32px; }
   .hero-description { font-size: 13px; }
   .hero-actions { flex-direction: column; align-items: center; }
-  .hero-actions .pill-button { min-width: 210px; }
+  .hero-actions .book-action-button { min-width: 210px; }
   .mobile-break { display: initial; }.desktop-break { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pill-button { transition: none; }.pill-button:hover { transform: none; }
+  .closing-book a { transition: none; }.closing-book a:hover { transform: none; }
 }
 </style>
