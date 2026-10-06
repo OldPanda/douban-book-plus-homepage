@@ -5,11 +5,15 @@ It stores accepted submissions in the existing D1 database and creates issues in
 the private repository configured on the server. No visitor GitHub account is needed. The browser receives only
 a random receipt ID, never a private issue URL, issue number, credential, or repository data.
 
-## Current rollout state
+## Last verified production release
+
+This is the recorded verification of the security release below, not a live
+deployment monitor. Recheck deployment metadata and pending migrations before
+each release; do not infer that a scheduled job has run merely from its deployment.
 
 - The form, API, database migration, and mocked integration tests are implemented.
-- `FEEDBACK_ENABLED` is `false` for local/preview and `true` in the prepared
-  `env.production` configuration, deployed on October 5, 2026.
+- `FEEDBACK_ENABLED` is `false` by default for local/preview and `true` in the
+  deployed `env.production` configuration. Local overrides can change that default.
 - Release preflight verified all three encrypted Production secret names without
   reading their values, and confirmed the production branch is `master`.
 - Migrations through `0008_uninstall_retention_index.sql` have been applied to
@@ -22,15 +26,10 @@ a random receipt ID, never a private issue URL, issue number, credential, or rep
   Its existing routes and both cron schedules were deployed successfully; the store
   statistics endpoint returned HTTP 200 with all three stores. Cleanup has not been
   manually triggered, and the first scheduled retention run is not yet verified.
-- A submission failure was traced to unsupported `redirect: 'error'` in the Workers
-  runtime, reproduced with dummy credentials locally, and fixed for both Turnstile
-  verification and GitHub delivery using manual redirects with strict status checks.
-  All 51 tests and the full typecheck/build preflight pass after this repair.
-  The deployed invalid-token probe now logs `token_rejected` rather than
-  `upstream_failure`, confirming Siteverify is reached. This probe creates no issue
-  and does not replace real-token success/replay validation.
-- Live checks confirmed the form is present, the feedback API is enabled, and a
-  missing-token request returns `403` before feedback storage or GitHub delivery.
+- Earlier rollout checks confirmed that a well-formed submission with a missing
+  token returned `403` before feedback storage or GitHub delivery. A separate
+  invalid-token probe reached Siteverify and logged `token_rejected` rather than
+  `upstream_failure`. Neither check replaces real-token success/replay validation.
 - Pages does not support `ratelimits` bindings. The feedback and uninstall forms now
   use the existing D1 database via migration `0007_public_form_rate_limits.sql`.
   The independent analytics Worker retains its supported native rate-limit bindings.
@@ -39,16 +38,19 @@ a random receipt ID, never a private issue URL, issue number, credential, or rep
   Remote secret contents have not been inspected. An owner-submitted real-token
   request was confirmed `delivered` with an issue number in Production. Live token
   replay validation remains pending; mocked tests are not live replay validation.
-- The automated Edge session loaded the live form but did not receive a completed
-  Turnstile token. No test feedback or issue was submitted. Desktop browser automation
-  initially reported no accessible window. The owner's subsequent submission confirmed
-  the live GitHub delivery path without requiring an automated test issue.
+- The additional local Cloudflare simulator check for the security release stalled
+  and was stopped. The passing SQLite tests, build checks, and production smoke
+  checks above do not constitute a successful simulator test.
 - A connected GitHub integration's credentials are not available to the deployed website.
 - The issue destination is supplied exclusively by `FEEDBACK_GITHUB_REPOSITORY`.
   Store it as an encrypted Cloudflare secret in `owner/repo` format; do not put the
   real value in public source, tests, documentation, or Wrangler variables.
 
-## Production prerequisites
+## Production prerequisites and subsequent releases
+
+The recorded production release already has these prerequisites. Reuse its
+database and encrypted secrets; these steps also describe provisioning a new
+environment and must not be treated as instructions to recreate live resources.
 
 1. Create a fine-grained GitHub personal access token belonging to an account with
    access to the intended private repository. Select **only that repository**, with **Issues: Read and write**
@@ -64,12 +66,14 @@ a random receipt ID, never a private issue URL, issue number, credential, or rep
    `doubanbook.plus`, matching the configured origin's hostname exactly. The widget
    uses action `feedback`. Do not put production secrets in preview environments or
    permit local hostnames on the production backend.
-4. Review and apply migrations `0006_homepage_feedback.sql` and
-   `0007_public_form_rate_limits.sql` to the existing database
+4. Review pending migrations for the existing database
    `douban-book-plus-feedback` (ID `34d7c35a-442e-4356-a8d1-5d2147ab667d`).
-   Review the list of pending migrations before using `pnpm run db:migrate:remote`;
-   that command applies all pending migrations, not just these two.
-5. The prepared `env.production.vars` configuration uses
+   Feedback requires `0006_homepage_feedback.sql` and
+   `0007_public_form_rate_limits.sql`; the shared maintenance Worker also uses
+   `0008_uninstall_retention_index.sql`. All three were applied in the recorded
+   release. `pnpm run db:migrate:remote` applies all pending migrations, so inspect
+   that list before running it rather than replaying individual migration files.
+5. The checked-in `env.production.vars` configuration uses
    `FEEDBACK_ENABLED: "true"`, `FEEDBACK_ORIGIN: "https://doubanbook.plus"`, and
    `TURNSTILE_HOSTNAMES: "doubanbook.plus"`. It also explicitly repeats the existing
    D1 binding because Pages environment overrides do not inherit it.
@@ -89,18 +93,19 @@ and [environment-specific configuration](https://developers.cloudflare.com/pages
 
 ## Project auto-add for homepage feedback
 
-Status: labeling code is deployed in Production (`3c2fc134`) and passes all 52 tests
-plus the full build preflight. The repository label and exact auto-add filter below
-were confirmed saved and enabled. Applying the label to an existing owner-approved
-feedback issue verified that it joined **Douban Book+** automatically. A new submission
-after this deployment has not yet been used to re-test issue-creation labeling live.
+Labeling was introduced in deployment `3c2fc134` and is included in the security
+release recorded above. During that rollout, the repository label and exact
+auto-add filter below were confirmed saved and enabled. Applying the label to an
+existing owner-approved feedback issue verified that it joined **Douban Book+**
+automatically. A new issue has not yet been used to verify the entire
+creation → labeling → project workflow live after that change.
 
 The issue creation request includes the fixed server-owned label
 `douban-book-plus-feedback`. Visitors cannot supply labels or project destinations.
 GitHub's built-in project workflow uses that label to route new issues; the website
 does not need a project-scoped token or a project ID in public source.
 
-Before deploying the labeled issue request:
+For a new environment, or when rechecking the existing integration:
 
 1. Create the `douban-book-plus-feedback` label in the configured private feedback
    repository, without changing repository visibility or token permissions.
@@ -160,10 +165,11 @@ No production secret is needed to run the automated checks.
   the survey's ingestion quota. Monitor scheduled execution failures so retention
   cleanup cannot silently stop.
 - Before releasing the retention change, apply
-  `0008_uninstall_retention_index.sql` to the existing database after reviewing
-  pending migrations. This migration only adds an index; the scheduled Worker
-  performs deletions after deployment. Deploy both Pages (rate-limit/dependency
-  fixes) and the analytics Worker (retention). No new bindings or secrets are needed.
+  `0008_uninstall_retention_index.sql` in environments where it remains pending.
+  It is already applied in the recorded production release. This migration only
+  adds an index; the scheduled Worker performs deletions. Changes to Pages and the
+  analytics Worker require separate deployments. See [survey operations](SURVEY_OPERATIONS.md)
+  for counter cleanup and response-retention details.
 
 ## Submission behavior and recovery
 
@@ -177,17 +183,23 @@ No production secret is needed to run the automated checks.
   are never persisted. Counters are not linked to feedback records. They expire after
   their minute; current and preceding windows are retained to protect in-flight requests.
   Older counters are deleted on subsequent form requests, not by an automatic TTL.
+  Without subsequent requests, expired rows can remain in D1. Attempts admitted by
+  the limiter consume allowance even if later validation or verification fails;
+  these are not counters of successfully stored feedback.
   An atomic database trigger caps new feedback at 100/day across locations.
 - Each valid submission attempt, including receipt retries, must pass server-side
   Turnstile Siteverify with strict `success === true`, action `feedback`, and the exact
   deployment hostname. Missing/expired/replayed tokens, malformed responses, upstream
-  failures, and verification timeouts fail closed before database or GitHub operations.
+  failures, and verification timeouts fail closed before feedback persistence or
+  GitHub operations. The D1 rate-limit counters are accessed before verification.
   The widget resets after every submission attempt and clears expired/error tokens.
   Challenge tokens are never stored, logged, or included in issues. Siteverify receives
   only the token and secret, not feedback content or an additional `remoteip` field.
 - The same receipt and content never intentionally create a second issue. A changed
   payload with an existing receipt is rejected. The form reuses a receipt for retries
   of unchanged text within the mounted page; reloading the page creates a new session.
+- A nonempty honeypot field returns a synthetic acceptance after verification,
+  without persisting feedback or creating an issue.
 - Immediately before posting, the backend checks the exact repository identity, private
   visibility, Issues availability, and archive status. It refuses redirects. Keep the destination repository
   private: changing its visibility later can expose issues that already exist there.
@@ -195,8 +207,9 @@ No production secret is needed to run the automated checks.
 - Failures are logged by event name and fixed failure categories only, without titles,
   messages, tokens, secrets, raw upstream responses, or raw IPs.
 - Outbound verification and GitHub requests use `redirect: 'manual'` and reject redirect
-  responses. Cloudflare's runtime does not support `redirect: 'error'`: it throws before
-  sending the request. Node-only fetch mocks do not reproduce this runtime limitation.
+  responses. An earlier rollout reproduced a runtime failure with `redirect: 'error'`
+  on this project's Workers target; keep the tested manual-redirect behavior rather
+  than relying on Node-only fetch mocks to validate runtime compatibility.
 
 States in `homepage_feedback`:
 
@@ -209,9 +222,10 @@ States in `homepage_feedback`:
 | `uncertain` | Timeout, 5xx, or malformed success after POST | Reconcile with GitHub before retrying. |
 
 GitHub does not provide an idempotency key for issue creation. We deliberately do not
-blindly retry ambiguous POSTs, which can create duplicates. A `202` response means
-feedback is safely saved but delivery needs attention, not that an issue was created.
-There is no scheduled delivery worker in this initial implementation: monitor pending,
+blindly retry ambiguous POSTs, which can create duplicates. For a normal (non-honeypot)
+submission, a `202` response means feedback is safely saved but delivery needs
+attention, not that an issue was created. There is no scheduled delivery worker
+in the current implementation: monitor pending,
 failed, uncertain and stale delivering records. Review non-delivered records using:
 
 ```sql

@@ -1,10 +1,18 @@
 # Sharing analytics operations
 
-Sharing analytics intentionally stores daily aggregate counters rather than raw
-events. Neither the extension nor the homepage sends book metadata, page URLs,
+Sharing analytics stores long-term daily aggregate counters plus short-lived
+delivery receipts for deduplication. Each receipt contains a hash derived from
+the batch ID, event index, and source, alongside the event's UTC day, name,
+target/resource bucket, count, source, and received day. The raw batch ID is not
+stored. Receipts are not user profiles or complete browsing-event histories.
+
+Neither the extension nor the homepage sends book metadata, page URLs, precise
 timestamps, user or installation identifiers, device information, cookies, or
-IP addresses as analytics fields. For abuse prevention only, the Worker derives
-a SHA-256 rate-limit key from the client address, route, and current UTC day.
+IP addresses as analytics payload fields. The browser's HTTP request can still
+carry normal headers; this statement describes the JSON payload and application
+storage, not the absence of network metadata. For abuse prevention only, the
+Worker derives a SHA-256 key from the client address, the `share-analytics:<source>`
+scope, and the current UTC day.
 The raw address and derived key are never written to application logs or D1,
 and the key changes daily.
 
@@ -29,36 +37,52 @@ idempotent but is never reused as a user or installation identifier.
 
 ## Deployment
 
-1. Apply the pending D1 migrations locally and run `pnpm run check`.
-2. Apply the production migration with `pnpm run db:migrate:remote`.
+1. Install with `pnpm install --frozen-lockfile`, apply pending D1 migrations locally,
+   and run `pnpm run check`.
+2. Review pending production migrations before running `pnpm run db:migrate:remote`.
+   The recorded security release applied migrations through `0008`; that migration
+   supports the uninstall-retention job in this same Worker, not a new analytics table.
 3. Deploy the dedicated ingestion Worker with `pnpm run analytics:worker:deploy`.
    Its write route is `doubanbook.plus/api/share-analytics`; its checked-in
-   rate-limit bindings cap each daily pseudonymous client at 10 requests per
-   minute and cap extension and homepage sources independently at 120 requests
-   per minute per Cloudflare location. Atomic D1 triggers additionally cap each
+   rate-limit bindings allow 10 requests per minute per daily pseudonymous
+   client/source key and 120 requests per minute per source. Both counters are
+   per Cloudflare location and permissive, not strict global quotas. Atomic D1 triggers cap each
    source at 10,000 newly accepted event rows and 25,000 reported events per UTC
    day. Idempotent retries do not consume this global quota. The same Worker
    serves the read-only extension-store cache described below.
 4. Deploy the Pages revision, then release the extension revision.
-5. Submit a test batch twice and confirm the daily counter increases only once.
+5. Test retry deduplication in an isolated environment. A production test writes
+   permanent aggregate counts, so obtain approval before submitting one there.
 
-Each payload accepts at most 50 occurrences of one event and 100 reported
-events in total. Chrome and Edge requests must also use the known production
-extension IDs; Firefox uses a per-install extension origin and is validated by
-its UUID shape. These checks reduce accidental and low-effort abuse but do not
+Each JSON payload is limited to 8 KiB, 1–32 event entries, 50 occurrences per
+entry, and 100 reported occurrences in total. Homepage event entries must have
+count 1. Event days must fall between seven UTC days ago and tomorrow. The
+`Origin` header for Chrome/Edge extension requests must contain a known production
+extension ID; Firefox extension origins are checked by UUID shape. A script
+outside the browser can forge that header. These checks reduce accidental and low-effort abuse but do not
 turn a public, anonymous endpoint into authenticated telemetry.
 
-The ingestion Worker runs a daily Cron Trigger that deletes delivery receipts
-after eight calendar days. Daily anonymous aggregate counters can be retained
-as long-term product trends. Origin checks and strict payload validation reduce
+At 03:17 UTC daily (`17 3 * * *`), the maintenance job deletes receipts with
+`received_day <= date(run_timestamp, '-8 days')` and analytics ingestion-quota
+rows at the same calendar-day boundary. This is scheduled cleanup, not an exact
+192-hour TTL; failed runs leave rows until a successful run. Daily aggregate
+counters are retained as long-term product trends. The same job deletes raw
+uninstall responses reaching their 24-month retention limit before the next run;
+see [survey operations](SURVEY_OPERATIONS.md). It does not clean up form rate-limit
+rows or deliver pending homepage feedback. Origin checks and strict payload validation reduce
 noise but are not authentication; monitor 429s and D1 volume because a public
 analytics endpoint can never treat CORS as an abuse boundary.
 
 Workers Logs and sampled traces are enabled in the checked-in configuration.
 Alert on sustained `share_analytics_rate_limited`,
-`share_analytics_daily_quota_reached`, or `share_analytics_storage_failed`
-events. The log records contain only the limiter scope and analytics source,
-never a client address or derived rate-limit key.
+`share_analytics_rate_limit_failed`, `share_analytics_daily_quota_reached`, or
+`share_analytics_storage_failed` events, and failed scheduled executions. Structured
+logs contain event names, relevant scope/source fields, and, for some failures,
+an error message. They do not intentionally include payloads, client addresses,
+or derived rate-limit keys; do not add such fields when troubleshooting.
+
+The [Workers rate-limit documentation](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/)
+describes why binding limits are per location and not a substitute for D1 quotas.
 
 ## Extension store statistics
 
@@ -90,7 +114,10 @@ curl "http://localhost:8787/cdn-cgi/local/scheduled?cron=17%20%2A%2F6%20%2A%20%2
 
 The manual configuration runs the Worker locally so Wrangler exposes the test
 route, but its D1 binding is explicitly remote and therefore updates the
-production database. Stop the local Worker with Ctrl-C after the refresh.
+production database. This is a production maintenance action, not an isolated
+local test. Use only the store-refresh cron shown above: invoking the daily
+maintenance cron through this configuration would delete production records.
+Stop the local Worker with Ctrl-C after the refresh.
 
 ## Reports
 
