@@ -5,6 +5,10 @@ export default defineConfig({
   title: "Douban Book+",
   description: "在豆瓣读书页面显示多个在线资源的链接，看到好书，想读就读，一键即达",
   lang: 'zh-cmn',
+  markdown: {
+    // Include section metadata for the custom policy-page table of contents.
+    headers: true
+  },
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     logo: '/icon128.png',

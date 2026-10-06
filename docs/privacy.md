@@ -1,9 +1,10 @@
 ---
 title: 隐私政策
 description: Douban Book+ 隐私政策
+layout: legal
 ---
 
-# 隐私政策
+# 隐私政策 {#legal-title}
 
 更新日期：2026 年 10 月 6 日
 
@@ -92,4 +93,6 @@ Douban Book+（以下简称“本扩展”）重视你的隐私。本隐私政�
 
 ## 联系我们
 
-如果你对本隐私政策有任何疑问，可通过 [GitHub 项目页面](https://github.com/OldPanda/douban-book-plus-homepage) 联系我们。
+如果你对本隐私政策有任何疑问，或希望查询、删除已提交的反馈，可通过[官网反馈表单](/#feedback) 给我们留言。涉及已有反馈时，请提供反馈编号，便于维护者查找。
+
+反馈无需登录，不会公开展示。请勿填写密码或其他敏感个人信息；本表单不提供邮件回复。
