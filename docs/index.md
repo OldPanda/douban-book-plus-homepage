@@ -1,16 +1,6 @@
 ---
-# https://vitepress.dev/reference/default-theme-home-page
 layout: home
-
-hero:
-  name: 'Douban Book+'
-  text: '好读书，也求甚解'
-  tagline: '发现好书靠豆瓣，阅读好书靠 Douban Book+'
-
+title: Douban Book+
+titleTemplate: false
+description: 在豆瓣发现好书，一键找到电子书。Douban Book+ 为豆瓣读书连接多个阅读平台，支持 Chrome、Edge 和 Firefox。
 ---
-
-<vendors/>
-<panda-hr/>
-<vote-us/>
-<media/>
-<share-referral-analytics />

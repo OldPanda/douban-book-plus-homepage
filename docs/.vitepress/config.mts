@@ -5,6 +5,10 @@ export default defineConfig({
   title: "Douban Book+",
   description: "在豆瓣读书页面显示多个在线资源的链接，看到好书，想读就读，一键即达",
   lang: 'zh-cmn',
+  markdown: {
+    // Include section metadata for the custom policy-page table of contents.
+    headers: true
+  },
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     logo: '/icon128.png',
@@ -36,13 +40,8 @@ export default defineConfig({
   appearance: false,
   head: [
     ['link', { rel: 'icon', href: '/icon128.png' }],
-    [
-      'link',
-      { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }
-    ],
-    [
-      'link',
-      { href: 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC&display=swap', rel: 'stylesheet' }
-    ]
+    ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
+    ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap' }]
   ]
 })

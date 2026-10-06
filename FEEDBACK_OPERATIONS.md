@@ -1,0 +1,311 @@
+# Homepage feedback → private GitHub issues
+
+The homepage form posts to `/api/feedback`, a Pages Function in this project.
+It stores accepted submissions in the existing D1 database and creates issues in
+the private repository configured on the server. No visitor GitHub account is needed. The browser receives only
+a random receipt ID, never a private issue URL, issue number, credential, or repository data.
+
+## Last verified production release (2026-10-06)
+
+- HMAC security release `e692aaa3-7b60-4b93-aa41-8ea38e504ca1` is deployed to
+  `doubanbook.plus` in the Pages Production environment (`master`). It was uploaded
+  from the tested working tree before committing; no Git commit or push was performed.
+- `PUBLIC_FORM_HMAC_SECRET` was generated from 32 random bytes and uploaded directly
+  as an encrypted Production secret, without displaying or saving its value locally.
+  All three existing encrypted secrets were preserved.
+- The Functions were deployed before migration `0009_public_form_hmac_keys.sql`.
+  The migration is applied, there are no pending migrations, and the database guard
+  exists. Aggregate checks showed HMAC rows for both form scopes and zero legacy
+  rows. No survey answers, feedback records, or issues were deleted.
+- The homepage, privacy page, terms page, and feedback configuration returned HTTP
+  200; feedback remains enabled. Empty requests to both form APIs returned HTTP 400
+  before and after migration, without storing submissions or creating issues.
+  All 65 tests, type checks, website/Functions builds, and Worker dry run passed.
+- The independent analytics Worker was not redeployed. Real-token feedback delivery
+  and token replay were not retested in this release.
+
+## Previous security release
+
+This is the recorded verification of the security release below, not a live
+deployment monitor. Recheck deployment metadata and pending migrations before
+each release; do not infer that a scheduled job has run merely from its deployment.
+
+- The form, API, database migration, and mocked integration tests are implemented.
+- `FEEDBACK_ENABLED` is `false` by default for local/preview and `true` in the
+  deployed `env.production` configuration. Local overrides can change that default.
+- Release preflight verified all three encrypted Production secret names without
+  reading their values, and confirmed the production branch is `master`.
+- Migrations through `0008_uninstall_retention_index.sql` have been applied to
+  Production. Security release `fdaee47a` is published to `doubanbook.plus`.
+  The live homepage references the new build assets, the feedback API remains enabled,
+  and a single empty submission returned `400 invalid_submission` without saving
+  feedback or creating an issue. All 59 tests and the full build/typecheck passed.
+- The analytics Worker security release is
+  `5a34e78a-a84e-4679-bba9-2da8060d59de`, including daily uninstall retention cleanup.
+  Its existing routes and both cron schedules were deployed successfully; the store
+  statistics endpoint returned HTTP 200 with all three stores. Cleanup has not been
+  manually triggered, and the first scheduled retention run is not yet verified.
+- Earlier rollout checks confirmed that a well-formed submission with a missing
+  token returned `403` before feedback storage or GitHub delivery. A separate
+  invalid-token probe reached Siteverify and logged `token_rejected` rather than
+  `upstream_failure`. Neither check replaces real-token success/replay validation.
+- Pages does not support `ratelimits` bindings. The feedback and uninstall forms now
+  use the existing D1 database via migration `0007_public_form_rate_limits.sql`.
+  The independent analytics Worker retains its supported native rate-limit bindings.
+- Turnstile is integrated using the owner's existing public site key. The owner has
+  confirmed `doubanbook.plus` is allowed and `TURNSTILE_SECRET` is saved in Production.
+  Remote secret contents have not been inspected. An owner-submitted real-token
+  request was confirmed `delivered` with an issue number in Production. Live token
+  replay validation remains pending; mocked tests are not live replay validation.
+- The additional local Cloudflare simulator check for the security release stalled
+  and was stopped. The passing SQLite tests, build checks, and production smoke
+  checks above do not constitute a successful simulator test.
+- A connected GitHub integration's credentials are not available to the deployed website.
+- The issue destination is supplied exclusively by `FEEDBACK_GITHUB_REPOSITORY`.
+  Store it as an encrypted Cloudflare secret in `owner/repo` format; do not put the
+  real value in public source, tests, documentation, or Wrangler variables.
+
+## Production prerequisites and subsequent releases
+
+The latest recorded production release has the original prerequisites below plus
+`PUBLIC_FORM_HMAC_SECRET` and migration `0009`. Preserve the existing database and
+secrets. For environments still running pre-HMAC code, follow the
+[HMAC upgrade](#hmac-rate-limit-upgrade). These steps also describe provisioning a
+new environment and must not be treated as instructions to recreate live resources.
+
+1. Create a fine-grained GitHub personal access token belonging to an account with
+   access to the intended private repository. Select **only that repository**, with **Issues: Read and write**
+   and the automatically included **Metadata: Read** permission. Confirm Issues is enabled
+   and the repository remains private. Set an expiration and schedule rotation.
+2. In the existing Cloudflare Pages project `douban-book-plus-homepage`, add
+   `FEEDBACK_GITHUB_TOKEN` and `FEEDBACK_GITHUB_REPOSITORY` as **encrypted secrets**,
+   for the intended production environment only. Enter their values directly in
+   Cloudflare, never in source code or chat.
+   The existing GitHub connector or a local Git login is not a deployment credential.
+3. Keep `TURNSTILE_SECRET` as an encrypted Production secret. The public site key lives
+   in `TurnstileChallenge.vue`; it is safe to publish. `TURNSTILE_HOSTNAMES` must be
+   `doubanbook.plus`, matching the configured origin's hostname exactly. The widget
+   uses action `feedback`. Do not put production secrets in preview environments or
+   permit local hostnames on the production backend.
+4. Review pending migrations for the existing database
+   `douban-book-plus-feedback` (ID `34d7c35a-442e-4356-a8d1-5d2147ab667d`).
+   Feedback requires `0006_homepage_feedback.sql` and
+   `0007_public_form_rate_limits.sql`; the shared maintenance Worker also uses
+   `0008_uninstall_retention_index.sql`. All three were applied in the recorded
+   release. `pnpm run db:migrate:remote` applies all pending migrations, so inspect
+   that list before running it rather than replaying individual migration files.
+   Migration `0009_public_form_hmac_keys.sql` must follow the HMAC-aware Pages
+   deployment on an existing site; see the upgrade sequence below.
+5. The checked-in `env.production.vars` configuration uses
+   `FEEDBACK_ENABLED: "true"`, `FEEDBACK_ORIGIN: "https://doubanbook.plus"`, and
+   `TURNSTILE_HOSTNAMES: "doubanbook.plus"`. It also explicitly repeats the existing
+   D1 binding because Pages environment overrides do not inherit it.
+   Deploy only after the prerequisites are complete. Keep default and preview feedback disabled.
+   Use the normal Pages release process; saving a secret alone does not update
+   previously deployed code. Do not enable the endpoint on arbitrary preview origins.
+6. Submit one clearly identified test through the production form with owner approval.
+   Verify one private issue, a private receipt, duplicate protection, and bot-token
+   replay rejection. Reposting the consumed token must return `403` without creating
+   a second issue; a fresh token with the same receipt and content must safely return
+   the existing receipt. Close the test issue after confirmation.
+
+GitHub's [create-issue endpoint](https://docs.github.com/en/rest/issues/issues#create-an-issue)
+supports fine-grained tokens with Issues write permission.
+Cloudflare documents [Pages secrets](https://developers.cloudflare.com/pages/functions/bindings/#secrets)
+and [environment-specific configuration](https://developers.cloudflare.com/pages/functions/wrangler-configuration/).
+
+## Project auto-add for homepage feedback
+
+Labeling was introduced in deployment `3c2fc134` and is included in the security
+release recorded above. During that rollout, the repository label and exact
+auto-add filter below were confirmed saved and enabled. Applying the label to an
+existing owner-approved feedback issue verified that it joined **Douban Book+**
+automatically. A new issue has not yet been used to verify the entire
+creation → labeling → project workflow live after that change.
+
+The issue creation request includes the fixed server-owned label
+`douban-book-plus-feedback`. Visitors cannot supply labels or project destinations.
+GitHub's built-in project workflow uses that label to route new issues; the website
+does not need a project-scoped token or a project ID in public source.
+
+For a new environment, or when rechecking the existing integration:
+
+1. Create the `douban-book-plus-feedback` label in the configured private feedback
+   repository, without changing repository visibility or token permissions.
+2. In the intended **Douban Book+** project, open **Workflows → Auto-add to project**.
+   Preserve existing rules; add a separate workflow if needed and supported by the plan.
+3. Select only the configured private feedback repository and use this filter:
+
+   ```text
+   is:issue is:open label:douban-book-plus-feedback
+   ```
+
+4. Save and enable the workflow. Confirm the selected repository and label before
+   deploying. Do not substitute an unfiltered rule that imports unrelated issues.
+5. Verify a new homepage issue has the label and appears in the intended project.
+   The `delivered` receipt confirms issue creation, not project membership.
+
+GitHub does not backfill existing matching items when the workflow is enabled. Older
+feedback issues need a deliberate label update or manual project assignment. Do not
+resubmit feedback or create duplicate issues just to add an existing issue to a project.
+If the plan's workflow limit is exhausted, stop and choose another approach with the
+owner rather than replacing an unrelated workflow or broadening credentials.
+
+See [GitHub's auto-add workflow documentation](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/adding-items-automatically).
+
+## Local validation
+
+```sh
+pnpm run typecheck
+pnpm run test:functions
+pnpm run docs:build
+pnpm run functions:build
+pnpm run db:migrate:local
+pnpm exec wrangler pages dev docs/.vitepress/dist --port 8788
+```
+
+The tests use an in-memory SQLite database and mocked GitHub/Siteverify calls: they never create
+issues. Node 22's built-in SQLite module is used to test the actual migration and SQL.
+`vitepress preview` on port 4173 serves static files only, so the form will display
+“反馈服务暂未开放” there. Use Pages dev to exercise the API; it remains disabled by default.
+Local `.dev.vars` files are ignored, but do not add a production GitHub token to local
+tests. There is no bypass that pretends a real GitHub issue was created.
+For a separately approved local end-to-end test, use an isolated test destination and
+a widget permitting the exact local hostname. Set both `FEEDBACK_ORIGIN` (including
+port) and `TURNSTILE_HOSTNAMES` to that local deployment; never broaden production.
+No production secret is needed to run the automated checks.
+
+## HMAC rate-limit upgrade
+
+Production completed this upgrade in the release recorded above. The sequence
+below applies to environments still running pre-HMAC code. Both feedback and
+uninstall submissions require a dedicated `PUBLIC_FORM_HMAC_SECRET`:
+exactly 64 hexadecimal characters encoding 32 cryptographically random bytes.
+Generate it with a trusted cryptographic generator or password manager. Do not
+reuse a GitHub token, Turnstile secret, public site key, or committed test fixture.
+
+1. Add it as an **encrypted secret** to the existing Pages project's Production
+   environment before the release. Keep it out of source, Wrangler `vars`, chat,
+   CLI arguments, logs, D1, and frontend environment variables. For local API
+   testing, use a separately generated value in an ignored `.dev.vars` file.
+   Preview environments must use separate secrets and isolated databases; never
+   bind an old preview deployment to the production database.
+2. Run `pnpm run check`, then deploy the HMAC-aware Pages Functions with the secret.
+   They work against the existing `0007` table without first applying `0009`.
+   Missing or malformed secrets return HTTP 503 before any database operation;
+   the feedback configuration endpoint also reports `enabled: false`. There is
+   no fallback to unkeyed hashing. A normal D1 or Web Crypto failure fails closed.
+3. Verify the active deployment, then review pending migrations and apply
+   `0009_public_form_hmac_keys.sql` to the verified database via the normal migration
+   process. It deletes only legacy, unkeyed limiter rows (including `global`),
+   preserves HMAC counters and submitted data, and installs an insert guard so
+   old Functions cannot reintroduce unkeyed hashes. This also removes old keys
+   on an idle site. Existing D1 backups/Time Travel may still contain historical
+   rows; restrict backup access and follow the provider's retention controls.
+4. Check both form paths with owner-approved test submissions and verify only
+   version-prefixed HMAC counters are created. Check HTTP statuses and aggregate
+   counts, not raw client keys or secret values. Do not roll back to pre-HMAC
+   code after the migration; old writers will fail closed.
+
+The transition or secret rotation changes client keys and may give a client a
+fresh per-minute allowance. The shared 30-attempt cap still counts all admitted
+client rows; deleting legacy counters during migration can reset their allowance.
+Schedule the transition during low traffic and keep the same secret across active
+instances. This is not a request to rotate other credentials or deploy the analytics
+Worker, whose non-persisted rate limiter is unchanged.
+
+These bindings follow Cloudflare's [Pages secret configuration](https://developers.cloudflare.com/pages/functions/bindings/#secrets)
+and use its supported [Web Crypto HMAC operations](https://developers.cloudflare.com/workers/runtime-apis/web-crypto/).
+
+## Security maintenance
+
+- `.env` and `.env.*` are ignored at every directory level. Only `.env.example`
+  is allowed as a sanitized template; never put real credentials in it. Continue
+  using server-side secret bindings, not frontend environment variables. Repository
+  secret scanning and push protection are separate GitHub settings to verify.
+- The daily maintenance cron (`17 3 * * *`, UTC) in the analytics Worker now also
+  deletes raw uninstall responses at the 24-month retention boundary. It includes
+  responses expiring before the next daily run (up to one day early). This does not
+  delete homepage feedback, GitHub issues, or aggregate analytics, nor does it reset
+  the survey's ingestion quota. Monitor scheduled execution failures so retention
+  cleanup cannot silently stop.
+- Before releasing the retention change, apply
+  `0008_uninstall_retention_index.sql` in environments where it remains pending.
+  It is already applied in the recorded production release. This migration only
+  adds an index; the scheduled Worker performs deletions. Changes to Pages and the
+  analytics Worker require separate deployments. See [survey operations](SURVEY_OPERATIONS.md)
+  for counter cleanup and response-retention details.
+
+## Submission behavior and recovery
+
+- Required: title (2–120 characters), message (5–3000), explicit consent, UUID v4 receipt.
+- Maximum request size: 16 KiB. No attachments, email fields, or automatic diagnostics.
+- Same-origin enforcement, hidden honeypot, and atomic D1 rate-limit counters with
+  distinct form scopes: 3 client attempts and 30 global attempts per fixed UTC minute.
+  One atomic statement checks the client cap and the sum of admitted attempts for
+  that scope/window. Rejected clients do not consume shared allowance. The shared cap
+  also bounds client-row creation. HMAC-SHA-256 keys use a server-only secret,
+  rotate each minute, and carry a `hmac-sha256:v1:` format prefix; raw addresses
+  are never persisted. Counters are not linked to feedback records. They expire after
+  their minute; current and preceding windows are retained to protect in-flight requests.
+  Older counters are deleted on subsequent form requests, not by an automatic TTL.
+  Without subsequent requests, expired rows can remain in D1. Attempts admitted by
+  the limiter consume allowance even if later validation or verification fails;
+  these are not counters of successfully stored feedback.
+  An atomic database trigger caps new feedback at 100/day across locations.
+- Each valid submission attempt, including receipt retries, must pass server-side
+  Turnstile Siteverify with strict `success === true`, action `feedback`, and the exact
+  deployment hostname. Missing/expired/replayed tokens, malformed responses, upstream
+  failures, and verification timeouts fail closed before feedback persistence or
+  GitHub operations. The D1 rate-limit counters are accessed before verification.
+  The widget resets after every submission attempt and clears expired/error tokens.
+  Challenge tokens are never stored, logged, or included in issues. Siteverify receives
+  only the token and secret, not feedback content or an additional `remoteip` field.
+- The same receipt and content never intentionally create a second issue. A changed
+  payload with an existing receipt is rejected. The form reuses a receipt for retries
+  of unchanged text within the mounted page; reloading the page creates a new session.
+- A nonempty honeypot field returns a synthetic acceptance after verification,
+  without persisting feedback or creating an issue.
+- Immediately before posting, the backend checks the exact repository identity, private
+  visibility, Issues availability, and archive status. It refuses redirects. Keep the destination repository
+  private: changing its visibility later can expose issues that already exist there.
+- User content is rendered as inert text in issues and is not trusted as instructions.
+- Failures are logged by event name and fixed failure categories only, without titles,
+  messages, tokens, secrets, raw upstream responses, or raw IPs.
+- Outbound verification and GitHub requests use `redirect: 'manual'` and reject redirect
+  responses. An earlier rollout reproduced a runtime failure with `redirect: 'error'`
+  on this project's Workers target; keep the tested manual-redirect behavior rather
+  than relying on Node-only fetch mocks to validate runtime compatibility.
+
+States in `homepage_feedback`:
+
+| State | Meaning | Recovery |
+| --- | --- | --- |
+| `pending` | Saved, not yet claimed | Same-receipt retry can claim delivery. |
+| `delivering` | One request owns delivery | A stale entry may mean a process died; reconcile first. |
+| `delivered` | GitHub returned an issue number | No further delivery; repeat requests return success. |
+| `failed` | Preflight failed or GitHub explicitly rejected the POST | Fix configuration; a same-receipt retry is safe. |
+| `uncertain` | Timeout, 5xx, or malformed success after POST | Reconcile with GitHub before retrying. |
+
+GitHub does not provide an idempotency key for issue creation. We deliberately do not
+blindly retry ambiguous POSTs, which can create duplicates. For a normal (non-honeypot)
+submission, a `202` response means feedback is safely saved but delivery needs
+attention, not that an issue was created. There is no scheduled delivery worker
+in the current implementation: monitor pending,
+failed, uncertain and stale delivering records. Review non-delivered records using:
+
+```sql
+SELECT request_id, state, created_at, updated_at
+FROM homepage_feedback
+WHERE state <> 'delivered'
+ORDER BY created_at;
+```
+
+Each issue includes `<!-- homepage-feedback:UUID -->`. Before recovering an uncertain
+record, check the configured private repository for that exact marker (including closed issues), allowing for
+GitHub search indexing delays. If found, update the record to delivered with the
+corresponding issue number. Do not reset its state and automatically post again.
+If definitively absent, a maintainer can create the issue once from the saved content,
+retain the marker, and mark the record delivered. A private admin retry endpoint is
+not exposed. Limit database content access to maintainers; do not copy feedback into
+public logs, issues, or debugging output.

@@ -1,11 +1,12 @@
 ---
 title: 使用条款
 description: Douban Book+ 使用条款
+layout: legal
 ---
 
-# 使用条款
+# 使用条款 {#legal-title}
 
-更新日期：2026 年 7 月 23 日
+更新日期：2026 年 10 月 6 日
 
 欢迎使用 Douban Book+（以下简称“本扩展”）。安装或使用本扩展，即表示你同意遵守以下条款。如果你不同意这些条款，请停止使用本扩展。
 
@@ -46,4 +47,6 @@ description: Douban Book+ 使用条款
 
 ## 联系我们
 
-如果你对本使用条款有任何疑问，可通过 [GitHub 项目页面](https://github.com/OldPanda/douban-book-plus-homepage) 联系我们。
+如果你对本使用条款有任何疑问，可通过[官网反馈表单](/#feedback) 给我们留言。
+
+反馈无需登录，不会公开展示。请勿填写密码或其他敏感个人信息；本表单不提供邮件回复。提交前请阅读[隐私政策](/privacy)，了解反馈信息的处理方式。

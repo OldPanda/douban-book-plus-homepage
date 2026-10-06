@@ -10,7 +10,7 @@ import {
   readExtensionStoreStats,
   refreshExtensionStoreStats,
 } from './store-stats.ts'
-import { deleteExpiredReceipts, SHARE_ANALYTICS_CLEANUP_CRON } from './maintenance.ts'
+import { deleteExpiredData, SHARE_ANALYTICS_CLEANUP_CRON } from './maintenance.ts'
 
 const responseHeaders = (origin: string | null): HeadersInit => ({
   'Cache-Control': 'no-store',
@@ -186,7 +186,7 @@ export default {
 
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
     if (controller.cron === SHARE_ANALYTICS_CLEANUP_CRON) {
-      await deleteExpiredReceipts(env)
+      await deleteExpiredData(env)
       return
     }
     if (controller.cron === EXTENSION_STORE_STATS_CRON) {

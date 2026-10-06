@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import worker from './index.ts'
-import { deleteExpiredReceipts } from './maintenance.ts'
+import { SHARE_ANALYTICS_CLEANUP_CRON } from './maintenance.ts'
 
 const extensionOrigin = 'chrome-extension://lkmnoeojcpmcpjlbhbjbilpmccfljdoj'
 
@@ -94,19 +94,30 @@ test('rejects a valid batch when its source has exhausted the global daily quota
   assert.equal(response.headers.get('Retry-After'), '3600')
 })
 
-test('scheduled cleanup removes receipts at the eight-day boundary', async () => {
-  const statements: string[] = []
+test('daily cron awaits analytics and uninstall retention cleanup', async () => {
+  const statements: Array<{ sql: string; timestamp: string }> = []
   const env = {
     DB: {
-      prepare: (sql: string) => ({ sql }),
-      batch: async (batch: Array<{ sql: string }>) => { statements.push(...batch.map(({ sql }) => sql)) },
+      prepare: (sql: string) => ({ bind: (timestamp: string) => ({ sql, timestamp }) }),
+      batch: async (batch: typeof statements) => { statements.push(...batch) },
     },
-  } as unknown as Parameters<typeof deleteExpiredReceipts>[0]
+  } as unknown as Parameters<typeof worker.scheduled>[1]
 
-  await deleteExpiredReceipts(env)
-  assert.equal(statements.length, 2)
-  assert.match(statements[0], /received_day <= date\('now', '-8 days'\)/)
-  assert.match(statements[1], /quota_day <= date\('now', '-8 days'\)/)
+  await worker.scheduled({ cron: SHARE_ANALYTICS_CLEANUP_CRON } as ScheduledController, env)
+  assert.equal(statements.length, 3)
+  assert.match(statements[0].sql, /received_day <= date\(\?, '-8 days'\)/)
+  assert.match(statements[1].sql, /quota_day <= date\(\?, '-8 days'\)/)
+  assert.match(statements[2].sql, /DELETE FROM uninstall_responses WHERE submitted_at <= datetime\(\?, '\+1 day', '-24 months'\)/)
+  assert.equal(new Set(statements.map(({ timestamp }) => timestamp)).size, 1)
+})
+
+test('scheduled cleanup failures propagate so the platform can report or retry them', async () => {
+  const env = { DB: {
+    prepare: () => ({ bind: () => ({}) }),
+    batch: async () => { throw new Error('test-only storage failure') },
+  } } as unknown as Parameters<typeof worker.scheduled>[1]
+  await assert.rejects(worker.scheduled({ cron: SHARE_ANALYTICS_CLEANUP_CRON } as ScheduledController, env),
+    /test-only storage failure/)
 })
 
 test('serves cached extension store statistics with public cache headers', async () => {

@@ -1,3 +1,37 @@
-.text {
-    font-family: 'Ma Shan Zheng', cursive;
+:root {
+  --vp-font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --book-font-family-heading: 'Ma Shan Zheng', 'Kaiti SC', 'STKaiti', 'KaiTi', cursive;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.book-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 10px 22px;
+  border: 1px solid #88afe3;
+  border-radius: 22px;
+  background: #d8e9ff;
+  color: #23486e;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.65;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.book-action-button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }

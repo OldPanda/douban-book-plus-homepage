@@ -1,28 +1,15 @@
-<!-- To override hero image -->
 <script setup lang="ts">
-import DefaultTheme from 'vitepress/theme';
-import ExtensionStores from './components/ExtensionStores.vue';
+import { useData } from 'vitepress'
+import DefaultTheme from 'vitepress/theme-without-fonts'
+import HomePage from './components/HomePage.vue'
+import LegalPage from './components/LegalPage.vue'
 
-const { Layout } = DefaultTheme;
+const { Layout } = DefaultTheme
+const { frontmatter } = useData()
 </script>
 
 <template>
-  <Layout>
-    <template #home-hero-image>
-      <img id="hero-image" src="/douban-book-plus-screenshot.png">
-    </template>
-    <template #home-features-before>
-      <ExtensionStores />
-    </template>
-  </Layout>
+  <HomePage v-if="frontmatter.layout === 'home'" />
+  <LegalPage v-else-if="frontmatter.layout === 'legal'" />
+  <Layout v-else />
 </template>
-
-<style scoped>
-img#hero-image {
-  position: relative;
-  min-width: 150%;
-  height: auto;
-  left: -70px;
-  -webkit-mask-image: linear-gradient(to right, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 1) 100%);
-}
-</style>
