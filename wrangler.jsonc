@@ -4,6 +4,11 @@
   "pages_build_output_dir": "./docs/.vitepress/dist",
   "compatibility_date": "2026-08-17",
   "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "FEEDBACK_ENABLED": "false",
+    "FEEDBACK_ORIGIN": "https://doubanbook.plus",
+    "TURNSTILE_HOSTNAMES": "doubanbook.plus"
+  },
   "d1_databases": [
     {
       "binding": "DB",
@@ -12,22 +17,21 @@
       "migrations_dir": "migrations"
     }
   ],
-  "ratelimits": [
-    {
-      "name": "SURVEY_CLIENT_RATE_LIMITER",
-      "namespace_id": "910213",
-      "simple": {
-        "limit": 3,
-        "period": 60
-      }
-    },
-    {
-      "name": "SURVEY_GLOBAL_RATE_LIMITER",
-      "namespace_id": "910214",
-      "simple": {
-        "limit": 30,
-        "period": 60
-      }
+  "env": {
+    "production": {
+      "vars": {
+        "FEEDBACK_ENABLED": "true",
+        "FEEDBACK_ORIGIN": "https://doubanbook.plus",
+        "TURNSTILE_HOSTNAMES": "doubanbook.plus"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "douban-book-plus-feedback",
+          "database_id": "34d7c35a-442e-4356-a8d1-5d2147ab667d",
+          "migrations_dir": "migrations"
+        }
+      ]
     }
-  ]
+  }
 }

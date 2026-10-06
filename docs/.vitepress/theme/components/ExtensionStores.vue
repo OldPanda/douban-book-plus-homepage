@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { VPFeatures } from 'vitepress/theme-without-fonts'
+import { onMounted, ref } from 'vue'
+import { storeDefinitions, type StoreName } from './extension-stores'
 
-type StoreName = 'chrome' | 'edge' | 'firefox'
+defineProps<{ recommendedStore?: StoreName }>()
 
 interface StoreStats {
   store: StoreName
@@ -40,27 +40,6 @@ const fallbackStats: Record<StoreName, StoreStats> = {
   },
 }
 
-const storeDefinitions = [
-  {
-    store: 'chrome' as const,
-    icon: { light: '/googlechrome-light.svg', dark: '/googlechrome-dark.svg' },
-    title: 'Chrome 插件商店',
-    link: 'https://chrome.google.com/webstore/detail/douban-book%20/lkmnoeojcpmcpjlbhbjbilpmccfljdoj',
-  },
-  {
-    store: 'edge' as const,
-    icon: { light: '/microsoftedge-light.svg', dark: '/microsoftedge-dark.svg' },
-    title: 'Edge 插件商店',
-    link: 'https://microsoftedge.microsoft.com/addons/detail/douban-book/kfdimcpljilcbhmlogkagbbjpjkdihom',
-  },
-  {
-    store: 'firefox' as const,
-    icon: { light: '/firefoxbrowser-light.svg', dark: '/firefoxbrowser-dark.svg' },
-    title: '火狐插件商店',
-    link: 'https://addons.mozilla.org/en-US/firefox/addon/douban-book-plus/',
-  },
-]
-
 const stats = ref<Record<StoreName, StoreStats>>({ ...fallbackStats })
 const integerFormatter = new Intl.NumberFormat('zh-CN')
 
@@ -68,14 +47,6 @@ const formatDetails = (store: StoreName, value: StoreStats): string => {
   const approximateMarker = store === 'chrome' ? '+' : ''
   return `${integerFormatter.format(value.users)}${approximateMarker} 位用户 · ★ ${value.rating.toFixed(1)}（${integerFormatter.format(value.ratingCount)} 条评分）`
 }
-
-const features = computed(() => storeDefinitions.map((definition) => ({
-  icon: definition.icon,
-  title: definition.title,
-  details: formatDetails(definition.store, stats.value[definition.store]),
-  link: definition.link,
-  rel: 'external',
-})))
 
 const isStoreName = (value: unknown): value is StoreName =>
   value === 'chrome' || value === 'edge' || value === 'firefox'
@@ -120,5 +91,32 @@ onMounted(loadStoreStats)
 </script>
 
 <template>
-  <VPFeatures :features="features" />
+  <div class="store-grid">
+    <a v-for="store in storeDefinitions" :key="store.store" class="store-card"
+      :class="{ 'is-recommended': store.store === recommendedStore }"
+      :href="store.link" target="_blank" rel="noopener noreferrer">
+      <div class="store-heading">
+        <img :src="store.icon" alt="" width="30" height="30" loading="lazy" />
+        <h3>{{ store.name }}</h3>
+        <span v-if="store.store === recommendedStore" class="store-badge">当前浏览器</span>
+      </div>
+      <p>{{ formatDetails(store.store, stats[store.store]) }}</p>
+      <span class="store-install">前往扩展商店安装 <span aria-hidden="true">→</span></span>
+    </a>
+  </div>
 </template>
+
+<style scoped>
+.store-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; text-align: left; }
+.store-card { padding: 26px; border: 1px solid #dfe3e8; border-radius: 16px; background: #fff; transition: border-color .2s, transform .2s, box-shadow .2s; }
+.store-card:hover { border-color: #88b4ee; transform: translateY(-3px); box-shadow: 0 10px 30px #1a35580a; }
+.store-card.is-recommended { border-color: #88b4ee; background: #f5f9ff; box-shadow: 0 0 0 1px #88b4ee26; }
+.store-badge { border-radius: 4px; padding: 2px 6px; font-size: 10px; line-height: 1.6; white-space: nowrap; color: #2566ba; background: #e5efff; }
+.store-card:focus-visible { outline: 3px solid #276ac7; outline-offset: 4px; }
+.store-heading { display: flex; align-items: center; gap: 12px; }
+.store-heading h3 { font-size: 19px; font-weight: 600; }
+.store-card p { margin: 18px 0 24px; color: #616b78; font-size: 12px; line-height: 1.8; }
+.store-install { display: flex; justify-content: space-between; color: #2566ba; font-size: 14px; font-weight: 500; }
+@media (max-width: 760px) { .store-grid { grid-template-columns: 1fr; } .store-card { padding: 22px; } .store-card p { margin: 12px 0 18px; } }
+@media (prefers-reduced-motion: reduce) { .store-card { transition: none; } .store-card:hover { transform: none; } }
+</style>
