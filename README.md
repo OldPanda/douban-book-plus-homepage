@@ -6,8 +6,17 @@ extension source.
 
 ## Development
 
-Use a current Node.js 22 release (validated with 22.23.3) and the pnpm version in
-`package.json`. Tests use Node's built-in SQLite and TypeScript support.
+Use Node.js 22.23.4 (pinned in `.node-version`) and the pnpm version in
+`package.json`. The supported alternatives are Node.js 24.22.1+ on the 24.x line
+and 26.12.1+ on the 26.x line. Older releases are rejected during installation.
+Tests use Node's built-in SQLite and TypeScript support.
+
+These minimum versions include the Brotli decoder fix for
+[CVE-2026-111497](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases).
+This requirement covers local development, tests, and Node-based build tools.
+Cloudflare Pages can select the build runtime from `.node-version`; any explicit
+`NODE_VERSION` setting must also select a patched release. This file does not
+change the managed runtime used by Pages Functions or Workers.
 
 ```sh
 pnpm install --frozen-lockfile
