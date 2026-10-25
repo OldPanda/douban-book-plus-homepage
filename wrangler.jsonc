@@ -3,17 +3,19 @@
   "name": "douban-book-plus-homepage",
   "pages_build_output_dir": "./docs/.vitepress/dist",
   "compatibility_date": "2026-08-17",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "vars": {
     "FEEDBACK_ENABLED": "false",
-    "FEEDBACK_ORIGIN": "https://doubanbook.plus",
-    "TURNSTILE_HOSTNAMES": "doubanbook.plus"
+    "FEEDBACK_ORIGIN": "https://dev.douban-book-plus-homepage.pages.dev",
+    "TURNSTILE_HOSTNAMES": "dev.douban-book-plus-homepage.pages.dev"
   },
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "douban-book-plus-feedback",
-      "database_id": "34d7c35a-442e-4356-a8d1-5d2147ab667d",
+      "database_name": "douban-book-plus-feedback-dev",
+      "database_id": "4a2c8b0b-44ec-4704-b26c-eeac7e53ceff",
       "migrations_dir": "migrations"
     }
   ],
@@ -29,6 +31,21 @@
           "binding": "DB",
           "database_name": "douban-book-plus-feedback",
           "database_id": "34d7c35a-442e-4356-a8d1-5d2147ab667d",
+          "migrations_dir": "migrations"
+        }
+      ]
+    },
+    "preview": {
+      "vars": {
+        "FEEDBACK_ENABLED": "false",
+        "FEEDBACK_ORIGIN": "https://dev.douban-book-plus-homepage.pages.dev",
+        "TURNSTILE_HOSTNAMES": "dev.douban-book-plus-homepage.pages.dev"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "douban-book-plus-feedback-dev",
+          "database_id": "4a2c8b0b-44ec-4704-b26c-eeac7e53ceff",
           "migrations_dir": "migrations"
         }
       ]
