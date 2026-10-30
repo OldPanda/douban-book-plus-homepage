@@ -10,7 +10,7 @@ overrides:
   sharp: 0.35.5
   source-map-js: 1.2.2
   undici: 7.30.1
-  vite: 6.4.4
+  vite: 6.4.5
 
 devDependencies:
   '@types/node':
@@ -1481,14 +1481,14 @@ packages:
     resolution: {integrity: sha512-60YRaenCQcVjYEKOcG824+DRGGIQ3VKErcBoAEDJZz5bKIs2ZG+X/H9Nk+Q6EVkwJk5QNApxbrc5QtBSwtrXAg==}
     dev: true
 
-  /@vitejs/plugin-vue@5.2.4(vite@6.4.4)(vue@3.5.42):
+  /@vitejs/plugin-vue@5.2.4(vite@6.4.5)(vue@3.5.42):
     resolution: {integrity: sha512-7Yx/SXSOcQq5HiiV3orevHUFn+pmMB4cgbEkDYgnkUWb0WfeQ/wa2yFv6D5ICiCQOVpjA7vYDXrC7AGO8yjDHA==}
     engines: {node: ^18.0.0 || >=20.0.0}
     peerDependencies:
-      vite: 6.4.4
+      vite: 6.4.5
       vue: ^3.2.25
     dependencies:
-      vite: 6.4.4(@types/node@26.2.0)
+      vite: 6.4.5(@types/node@26.2.0)
       vue: 3.5.42(typescript@5.9.3)
     dev: true
 
@@ -2324,8 +2324,8 @@ packages:
       vfile-message: 4.0.3
     dev: true
 
-  /vite@6.4.4(@types/node@26.2.0):
-    resolution: {integrity: sha512-xGjU/SyjeNyb0E4KxXBvYz/1C+3JXuujvf2hXNOtnlcE+58o5ajd9N2/n2VhkiJvpCP2qQasnUpx5PXNeI+p1Q==}
+  /vite@6.4.5(@types/node@26.2.0):
+    resolution: {integrity: sha512-4enwjFfi4IwtEh0w+jPzpLVOFQiPHmmzPxcHXQOyEur47o6u0jE573DmGpjA+7irXoMLYRZD5ZaFUEneS3abPg==}
     engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
     hasBin: true
     peerDependencies:
@@ -2394,7 +2394,7 @@ packages:
       '@shikijs/transformers': 2.5.0
       '@shikijs/types': 2.5.0
       '@types/markdown-it': 14.1.2
-      '@vitejs/plugin-vue': 5.2.4(vite@6.4.4)(vue@3.5.42)
+      '@vitejs/plugin-vue': 5.2.4(vite@6.4.5)(vue@3.5.42)
       '@vue/devtools-api': 7.7.10
       '@vue/shared': 3.5.40
       '@vueuse/core': 12.8.2(typescript@5.9.3)
@@ -2403,7 +2403,7 @@ packages:
       mark.js: 8.11.1
       minisearch: 7.2.0
       shiki: 2.5.0
-      vite: 6.4.4(@types/node@26.2.0)
+      vite: 6.4.5(@types/node@26.2.0)
       vue: 3.5.42(typescript@5.9.3)
     transitivePeerDependencies:
       - '@algolia/client-search'
