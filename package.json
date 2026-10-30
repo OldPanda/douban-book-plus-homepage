@@ -15,7 +15,7 @@
     "functions:build": "wrangler pages functions build --outdir .wrangler/functions-build",
     "survey:results": "wrangler d1 execute douban-book-plus-feedback --remote --command \"SELECT reason, COUNT(*) AS responses FROM uninstall_responses GROUP BY reason ORDER BY responses DESC\"",
     "test:functions": "node --test functions/lib/*.test.ts workers/share-analytics/*.test.ts",
-    "test:homepage": "node --test tests/book-covers.test.ts",
+    "test:homepage": "node --test tests/*.test.ts",
     "typecheck": "vue-tsc --noEmit && tsc --project functions/tsconfig.json --noEmit && tsc --project workers/share-analytics/tsconfig.json --noEmit"
   },
   "devDependencies": {
@@ -33,7 +33,7 @@
       "sharp": "0.35.5",
       "source-map-js": "1.2.2",
       "undici": "7.30.1",
-      "vite": "6.4.4"
+      "vite": "6.4.5"
     }
   },
   "engines": {
